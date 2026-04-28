@@ -39,12 +39,32 @@ validateProviderConfig();
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 let _openai: OpenAI | null = null;
+let _groq: OpenAI | null = null;
+let _cerebras: OpenAI | null = null;
 let _ollama: Ollama | null = null;
 let _gemini: GoogleGenerativeAI | null = null;
 
 function getOpenAI() {
   if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   return _openai;
+}
+
+function getGroq() {
+  if (!_groq)
+    _groq = new OpenAI({
+      baseURL: "https://api.groq.com/openai/v1",
+      apiKey: process.env.GROQ_API_KEY,
+    });
+  return _groq;
+}
+
+function getCerebras() {
+  if (!_cerebras)
+    _cerebras = new OpenAI({
+      baseURL: "https://api.cerebras.ai/v1",
+      apiKey: process.env.CEREBRAS_API_KEY,
+    });
+  return _cerebras;
 }
 
 function getOllama() {
@@ -118,6 +138,24 @@ export function getLLM(): (messages: ChatMessage[]) => Promise<string> {
       const chat = model.startChat({ history });
       const result = await chat.sendMessage(last.content);
       return result.response.text();
+    };
+  }
+
+  if (AI_PROVIDER === "groq") {
+    const groq = getGroq();
+    const model = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+    return async (messages) => {
+      const res = await groq.chat.completions.create({ model, messages });
+      return res.choices[0].message.content ?? "";
+    };
+  }
+
+  if (AI_PROVIDER === "cerebras") {
+    const cerebras = getCerebras();
+    const model = process.env.CEREBRAS_MODEL ?? "llama3.1-8b";
+    return async (messages) => {
+      const res = await cerebras.chat.completions.create({ model, messages });
+      return res.choices[0].message.content ?? "";
     };
   }
 
