@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    instrumentationHook: true,
+    serverComponentsExternalPackages: ["pg-boss", "pdf-parse", "mammoth", "ollama"],
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "www.gravatar.com" },

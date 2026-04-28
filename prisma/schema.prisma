@@ -91,7 +91,7 @@ model DocumentChunk {
   documentId String
   content    String
   metadata   Json
-  embedding  Unsupported("vector(1536)")?
+  embedding  Unsupported("vector(768)")?
   document   Document                    @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([documentId])
@@ -125,16 +125,17 @@ model Chapter {
 }
 
 model Lesson {
-  id        String   @id @default(cuid())
-  chapterId String
-  title     String
-  order     Int
-  type      String   @default("standard") // "standard" | "checkpoint"
-  xpReward  Int      @default(10)
-  gemReward Int      @default(0)
-  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  exercises Exercise[]
-  progress  LessonProgress[]
+  id             String   @id @default(cuid())
+  chapterId      String
+  title          String
+  order          Int
+  type           String   @default("standard") // "standard" | "checkpoint"
+  xpReward       Int      @default(10)
+  gemReward      Int      @default(0)
+  topicKeywords  String[]
+  chapter        Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  exercises      Exercise[]
+  progress       LessonProgress[]
 }
 
 model Exercise {
