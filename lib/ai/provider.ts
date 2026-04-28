@@ -41,6 +41,7 @@ export type ChatMessage = { role: "system" | "user" | "assistant"; content: stri
 let _openai: OpenAI | null = null;
 let _groq: OpenAI | null = null;
 let _cerebras: OpenAI | null = null;
+let _openaiCompat: OpenAI | null = null;
 let _ollama: Ollama | null = null;
 let _gemini: GoogleGenerativeAI | null = null;
 
@@ -65,6 +66,15 @@ function getCerebras() {
       apiKey: process.env.CEREBRAS_API_KEY,
     });
   return _cerebras;
+}
+
+function getOpenAICompat() {
+  if (!_openaiCompat)
+    _openaiCompat = new OpenAI({
+      baseURL: process.env.OPENAI_COMPAT_BASE_URL ?? "http://localhost:8000/v1",
+      apiKey: process.env.OPENAI_COMPAT_API_KEY ?? "not-needed",
+    });
+  return _openaiCompat;
 }
 
 function getOllama() {
@@ -155,6 +165,15 @@ export function getLLM(): (messages: ChatMessage[]) => Promise<string> {
     const model = process.env.CEREBRAS_MODEL ?? "llama3.1-8b";
     return async (messages) => {
       const res = await cerebras.chat.completions.create({ model, messages });
+      return res.choices[0].message.content ?? "";
+    };
+  }
+
+  if (AI_PROVIDER === "openai-compat") {
+    const compat = getOpenAICompat();
+    const model = process.env.OPENAI_COMPAT_MODEL ?? "";
+    return async (messages) => {
+      const res = await compat.chat.completions.create({ model, messages });
       return res.choices[0].message.content ?? "";
     };
   }
