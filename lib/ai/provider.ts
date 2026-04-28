@@ -88,7 +88,9 @@ function getGemini() {
 }
 
 export function getEmbeddingModel(): (text: string) => Promise<number[]> {
-  if (AI_PROVIDER === "openai") {
+  const provider = EMBEDDING_PROVIDER;
+
+  if (provider === "openai") {
     const openai = getOpenAI();
     const model = process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
     return async (text) => {
@@ -97,7 +99,7 @@ export function getEmbeddingModel(): (text: string) => Promise<number[]> {
     };
   }
 
-  if (AI_PROVIDER === "gemini") {
+  if (provider === "gemini") {
     const genAI = getGemini();
     // text-embedding-004 outputs 768 dimensions — matches our pgvector schema
     const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
@@ -107,7 +109,16 @@ export function getEmbeddingModel(): (text: string) => Promise<number[]> {
     };
   }
 
-  // Ollama
+  if (provider === "openai-compat") {
+    const compat = getOpenAICompat();
+    const model = process.env.OPENAI_COMPAT_EMBEDDING_MODEL!;
+    return async (text) => {
+      const res = await compat.embeddings.create({ model, input: text });
+      return res.data[0].embedding;
+    };
+  }
+
+  // ollama (default)
   const ollama = getOllama();
   const ollamaModel = process.env.OLLAMA_EMBEDDING_MODEL ?? "nomic-embed-text";
   return async (text) => {
