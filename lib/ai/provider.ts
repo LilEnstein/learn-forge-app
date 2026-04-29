@@ -1,6 +1,16 @@
 import OpenAI from "openai";
 import { Ollama } from "ollama";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { withRetry, withModelFallback } from "./retry";
+
+function getGeminiModelChain(): string[] {
+  const primary = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+  const fallbacks = (process.env.GEMINI_MODEL_FALLBACKS ?? "gemini-flash-latest,gemini-2.0-flash")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return [primary, ...fallbacks.filter((m) => m !== primary)];
+}
 
 const AI_PROVIDER = process.env.AI_PROVIDER ?? "gemini";
 const EMBEDDING_PROVIDER = process.env.EMBEDDING_PROVIDER || AI_PROVIDER;
@@ -94,18 +104,33 @@ export function getEmbeddingModel(): (text: string) => Promise<number[]> {
     const openai = getOpenAI();
     const model = process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
     return async (text) => {
-      const res = await openai.embeddings.create({ model, input: text, dimensions: 768 });
+      const res = await openai.embeddings.create({ model, input: text, dimensions: 1536 });
       return res.data[0].embedding;
     };
   }
 
   if (provider === "gemini") {
     const genAI = getGemini();
-    // text-embedding-004 outputs 768 dimensions — matches our pgvector schema
-    const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    // gemini-embedding-001 default is 3072-d; we request 1536 to match pgvector(1536).
+    // Google recommends L2-normalizing when outputDimensionality < 3072.
+    const modelName = process.env.GEMINI_EMBEDDING_MODEL ?? "gemini-embedding-001";
+    const model = genAI.getGenerativeModel({ model: modelName });
     return async (text) => {
-      const res = await model.embedContent(text);
-      return res.embedding.values;
+      // outputDimensionality is supported by the REST API but missing from the SDK
+      // 0.24.1 type — pass it through via a cast.
+      const res = await withRetry(
+        () =>
+          model.embedContent({
+            content: { role: "user", parts: [{ text }] },
+            outputDimensionality: 1536,
+          } as Parameters<typeof model.embedContent>[0]),
+        { label: "gemini-embed" }
+      );
+      const v = res.embedding.values;
+      let sumSq = 0;
+      for (const x of v) sumSq += x * x;
+      const norm = Math.sqrt(sumSq);
+      return norm > 0 ? v.map((x) => x / norm) : v;
     };
   }
 
@@ -139,25 +164,28 @@ export function getLLM(): (messages: ChatMessage[]) => Promise<string> {
 
   if (AI_PROVIDER === "gemini") {
     const genAI = getGemini();
-    const modelName = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
     return async (messages) => {
       // Gemini separates system instruction from chat history
       const systemMsg = messages.find((m) => m.role === "system");
       const chatMsgs = messages.filter((m) => m.role !== "system");
-
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: systemMsg?.content,
-      });
-
       const history = chatMsgs.slice(0, -1).map((m) => ({
         role: m.role === "assistant" ? "model" : "user",
         parts: [{ text: m.content }],
       }));
-
       const last = chatMsgs[chatMsgs.length - 1];
-      const chat = model.startChat({ history });
-      const result = await chat.sendMessage(last.content);
+
+      const result = await withModelFallback(
+        getGeminiModelChain(),
+        (modelName) => {
+          const model = genAI.getGenerativeModel({
+            model: modelName,
+            systemInstruction: systemMsg?.content,
+          });
+          const chat = model.startChat({ history });
+          return chat.sendMessage(last.content);
+        },
+        { label: "gemini-llm", retries: 2, baseDelayMs: 800 }
+      );
       return result.response.text();
     };
   }

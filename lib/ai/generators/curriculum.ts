@@ -107,10 +107,14 @@ export async function generateCurriculum(courseId: string): Promise<void> {
       select: { id: true },
     });
 
-    const { getBoss } = await import("@/lib/queue/boss");
-    const boss = await getBoss();
+    const { sendJob } = await import("@/lib/queue/boss");
+    const { generateExercises } = await import("@/lib/ai/generators/exercises");
     for (const lesson of lessons) {
-      await boss.send("generate-exercises", { lessonId: lesson.id });
+      await sendJob("generate-exercises", { lessonId: lesson.id });
+      // Fire directly in background — pg-boss workers may not be running in dev
+      generateExercises(lesson.id).catch((e) =>
+        console.error("[curriculum] generateExercises failed:", lesson.id, e)
+      );
     }
   });
 }

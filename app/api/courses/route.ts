@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { getBoss } from "@/lib/queue/boss";
+import { sendJob } from "@/lib/queue/boss";
 
 const CreateCourseSchema = z.object({
   title: z.string().min(1).max(200),
@@ -68,9 +68,7 @@ export async function POST(req: NextRequest) {
     data: { courseId: course.id },
   });
 
-  // Enqueue curriculum generation
-  const boss = await getBoss();
-  await boss.send("generate-curriculum", { courseId: course.id });
+  await sendJob("generate-curriculum", { courseId: course.id });
 
   return NextResponse.json({ courseId: course.id }, { status: 201 });
 }

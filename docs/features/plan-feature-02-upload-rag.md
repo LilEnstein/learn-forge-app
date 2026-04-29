@@ -94,7 +94,7 @@
 ---
 
 ## Acceptance Criteria
-- [ ] PDF upload → parsed → chunked → embedded → `DocumentChunk` rows created
+- [ ] PDF(Docx,..) upload → parsed → chunked → embedded → `DocumentChunk` rows created
 - [ ] Document status transitions: `processing` → `ready` / `error` visible in UI
 - [ ] Free tier: 4th upload attempt returns 403 with clear message
 - [ ] Files over 50 MB rejected with 400

@@ -9,8 +9,12 @@ export async function startWorkers(): Promise<void> {
 
   const boss = await getBoss();
 
+  for (const q of ["ingest-document", "generate-curriculum", "generate-exercises"]) {
+    await boss.createQueue(q);
+  }
+
   boss.work<{ documentId: string }>("ingest-document", async (jobs: Job<{ documentId: string }>[]) => {
-    const { ingestDocument } = await import("@/lib/ai/rag/ingest");
+    const { ingestDocument } = await import("@/lib/upload/ingest");
     for (const job of jobs) {
       await ingestDocument(job.data.documentId);
     }

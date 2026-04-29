@@ -2,7 +2,7 @@
 const nextConfig = {
   experimental: {
     instrumentationHook: true,
-    serverComponentsExternalPackages: ["pg-boss", "pdf-parse", "mammoth", "ollama"],
+    serverComponentsExternalPackages: ["pg-boss", "pdf-parse", "mammoth", "ollama", "@google/generative-ai"],
   },
   images: {
     remotePatterns: [

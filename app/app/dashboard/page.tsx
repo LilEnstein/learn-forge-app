@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db/prisma";
 import Link from "next/link";
 import { Plus, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { CoursesGrid } from "@/components/dashboard/CoursesGrid";
 
 export default async function DashboardPage() {
   const session = await requireSession();
@@ -12,6 +13,12 @@ export default async function DashboardPage() {
     where: { userId: session.user.id },
     orderBy: { updatedAt: "desc" },
     take: 12,
+    select: {
+      id: true,
+      title: true,
+      emoji: true,
+      status: true,
+    },
   });
 
   const gamification = await prisma.userGamification.findUnique({
@@ -85,32 +92,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {courses.map((course) => (
-              <Link key={course.id} href={`/app/learn/${course.id}`}>
-                <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-                  <CardHeader>
-                    <div className="text-3xl mb-2">{course.emoji}</div>
-                    <CardTitle className="text-base line-clamp-2">{course.title}</CardTitle>
-                    {course.description && (
-                      <CardDescription className="line-clamp-2">{course.description}</CardDescription>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        course.status === "ready"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}
-                    >
-                      {course.status === "ready" ? "Ready" : "Generating…"}
-                    </span>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
+          <CoursesGrid initial={courses} />
         )}
       </div>
     </div>

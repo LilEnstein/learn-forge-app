@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(C:/Users/sang.nguyenanh/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/scripts/start-server.sh --project-dir \"c:/Turin/LearnForge\")",
+      "Bash(\"C:/Users/sang.nguyenanh/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh\" --project-dir \"c:/Turin/LearnForge\")",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\" --yes)",
+      "Bash(docker-compose up *)",
+      "Bash(docker --version)",
+      "Bash(npx prisma *)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/learnforge\" npx prisma migrate dev --name init)"
+    ]
+  }
+}

@@ -18,3 +18,10 @@ export async function getBoss(): Promise<PgBoss> {
 
   return bossPromise;
 }
+
+// Always creates queue before sending — createQueue is idempotent in pg-boss
+export async function sendJob(queue: string, data: object): Promise<void> {
+  const boss = await getBoss();
+  await boss.createQueue(queue);
+  await boss.send(queue, data);
+}

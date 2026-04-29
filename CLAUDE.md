@@ -159,3 +159,49 @@ After Chunk 3 the project is a working MVP. Chunks 4–8 can be done in any orde
 - Do not let `lib/ai/provider.ts` shape drift per file — design it once in Chunk 2 and freeze it.
 - Do not generate exercises before validating the curriculum JSON schema end-to-end.
 - Do not add try/catch around code the framework already wraps.
+## Continuous Integration & Deployment
+
+After completing any feature, you MUST perform the following steps:
+
+### 1. Feature Completion Check
+- Ensure the implementation is complete and aligned with `learnforge-app-spec.md`
+- Verify no breaking changes are introduced
+- Confirm code is clean, consistent, and production-ready
+
+### 2. Git Commit 
+- Stage all relevant changes
+- Write a clear and structured commit message using conventional commits format
+
+Example:
+feat(auth): implement JWT-based authentication
+
+Commands:
+git add .
+git commit -m "<type>(scope): <description>"
+
+### 3. Push to Repository
+- Push the commit to the main branch (or current working branch if specified)
+
+Command:
+git push origin <branch>
+
+### 4. Deploy to Vercel
+- Deploy the latest version of the project to Vercel
+
+Command:
+vercel --prod
+
+### 5. Post-Deployment Verification
+- Ensure deployment succeeds without errors
+- If deployment fails, debug and fix before proceeding
+
+## Enforcement Rules
+
+- These steps MUST be executed after EVERY completed feature
+- Do NOT skip commit or deployment steps
+- If any step cannot be executed (e.g., missing credentials, CLI not installed), explicitly notify and provide a fix
+
+## Safety Constraints
+
+- Never commit sensitive data (API keys, secrets)
+- Ensure environment variables are properly handled before deployment
