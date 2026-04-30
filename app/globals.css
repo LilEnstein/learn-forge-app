@@ -85,3 +85,38 @@ pre[class*="language-"] {
   background-size: 200% auto !important;
   animation: shimmer 3s linear infinite;
 }
+
+/* Mascot loading animations */
+@keyframes mascot-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-18px); }
+}
+@keyframes mascot-breathe {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.08); }
+}
+@keyframes mascot-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50%       { transform: translateY(-12px) rotate(3deg); }
+}
+@keyframes mascot-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  20%       { transform: rotate(-12deg); }
+  40%       { transform: rotate(12deg); }
+  60%       { transform: rotate(-8deg); }
+  80%       { transform: rotate(8deg); }
+}
+
+/* Indeterminate progress bar animation */
+@keyframes indeterminate-bar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+/* Dark mode crossfade — only active during theme toggle, not scroll/hover */
+html.is-theme-transitioning *,
+html.is-theme-transitioning *::before,
+html.is-theme-transitioning *::after {
+  transition: background-color 300ms ease, color 300ms ease,
+              border-color 300ms ease, fill 300ms ease !important;
+}
