@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { motion } from "framer-motion";
 
 export interface MapLesson {
@@ -52,14 +53,14 @@ export function MapNode({ lesson, side, onClick }: Props) {
     ? "#e5e7eb"
     : isCheckpoint
     ? isCompleted
-      ? undefined // shimmer class handles background for completed checkpoint
+      ? "#FCD34D" // fallback gold; checkpoint-shimmer CSS will animate it
       : "linear-gradient(135deg, #F59E0B, #D97706)"
     : "#7c3aed";
 
-  const nodeStyle: React.CSSProperties = {
+  const nodeStyle: CSSProperties = {
     width: NODE_SIZE,
     height: NODE_SIZE,
-    ...(nodeBackground ? { background: nodeBackground } : {}),
+    background: nodeBackground,
     ...(isCheckpoint
       ? { clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }
       : { borderRadius: "50%" }),
