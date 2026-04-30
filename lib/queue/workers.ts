@@ -9,7 +9,13 @@ export async function startWorkers(): Promise<void> {
 
   const boss = await getBoss();
 
-  for (const q of ["ingest-document", "generate-curriculum", "generate-exercises"]) {
+  for (const q of [
+    "ingest-document",
+    "generate-curriculum",
+    "generate-exercises",
+    "streak-daily-check",
+    "league-weekly-reset",
+  ]) {
     await boss.createQueue(q);
   }
 
