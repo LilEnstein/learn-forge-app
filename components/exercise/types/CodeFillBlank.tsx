@@ -1,16 +1,63 @@
 "use client";
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
+import Prism from "prismjs";
+import "prismjs/themes/prism-tomorrow.css";
+import "prismjs/components/prism-javascript";
 
 interface Props {
   question: string;
+  language?: string;
   onSubmit: (answer: string) => void;
   disabled: boolean;
 }
 
-export function CodeFillBlank({ question, onSubmit, disabled }: Props) {
+async function loadLanguage(lang: string): Promise<void> {
+  switch (lang) {
+    case "python":
+      // @ts-ignore — no types for prismjs sub-components
+      await import("prismjs/components/prism-python");
+      break;
+    case "sql":
+      // @ts-ignore — no types for prismjs sub-components
+      await import("prismjs/components/prism-sql");
+      break;
+    case "typescript":
+      // @ts-ignore — no types for prismjs sub-components
+      await import("prismjs/components/prism-typescript");
+      break;
+    case "bash":
+      // @ts-ignore — no types for prismjs sub-components
+      await import("prismjs/components/prism-bash");
+      break;
+    // "javascript" is statically imported above — no case needed
+  }
+}
+
+function highlightPart(part: string, language: string): string {
+  const safeLanguage = Prism.languages[language] ? language : "javascript";
+  return part?.trim()
+    ? Prism.highlight(part, Prism.languages[safeLanguage], safeLanguage)
+    : "";
+}
+
+export function CodeFillBlank({ question, language = "javascript", onSubmit, disabled }: Props) {
   const parts = question.split("___");
   const blankCount = parts.length - 1;
   const [values, setValues] = useState<string[]>(Array(blankCount).fill(""));
+  const [highlightedParts, setHighlightedParts] = useState<string[]>(parts.map(() => ""));
+
+  useEffect(() => {
+    let cancelled = false;
+    async function highlight() {
+      await loadLanguage(language);
+      if (cancelled) return;
+      setHighlightedParts(parts.map((p) => highlightPart(p, language)));
+    }
+    highlight();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, question]);
 
   function updateValue(i: number, v: string) {
     setValues((prev) => {
@@ -32,7 +79,11 @@ export function CodeFillBlank({ question, onSubmit, disabled }: Props) {
       <pre className="bg-muted rounded-xl p-4 text-sm font-mono whitespace-pre-wrap overflow-x-auto">
         {parts.map((part, i) => (
           <span key={i}>
-            {part}
+            {highlightedParts[i] ? (
+              <span dangerouslySetInnerHTML={{ __html: highlightedParts[i] }} />
+            ) : (
+              part
+            )}
             {i < parts.length - 1 && (
               <input
                 type="text"
