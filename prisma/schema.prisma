@@ -25,6 +25,7 @@ model User {
   onboardingDone Boolean @default(false)
   dailyGoalMin   Int     @default(10)
   avatarKey      String  @default("owl") // fox | owl | panda | dragon | bear | cat
+  theme          String? @default("system")
 
   accounts      Account[]
   sessions      Session[]
