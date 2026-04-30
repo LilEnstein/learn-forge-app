@@ -93,6 +93,16 @@ export function MapNode({ lesson, side, onClick }: Props) {
         <motion.div
           className={shimmerClass}
           style={nodeStyle}
+          role="button"
+          aria-disabled={isLocked ? "true" : undefined}
+          aria-label={
+            isLocked
+              ? `${lesson.title} — locked`
+              : isCompleted
+              ? `${lesson.title} — completed`
+              : `${lesson.title} — ${lesson.xpReward} XP — available`
+          }
+          title={isLocked ? "Hoàn thành bài trước để mở khóa" : undefined}
           animate={{
             opacity: isLocked ? 0.4 : 1,
             scale: isLocked ? 0.9 : 1,
@@ -103,13 +113,22 @@ export function MapNode({ lesson, side, onClick }: Props) {
               ? { boxShadow: { duration: 2, repeat: Infinity }, opacity: { duration: 0.4 }, scale: { duration: 0.4 } }
               : { duration: 0.4 }
           }
-          onClick={() => onClick(lesson)}
+          onClick={() => !isLocked && onClick(lesson)}
           whileHover={!isLocked ? { scale: 1.08 } : undefined}
         >
           <span style={{ color: isLocked ? "#9ca3af" : "white", fontSize: isCompleted && !isCheckpoint ? 20 : 22 }}>
             {icon}
           </span>
         </motion.div>
+
+        {isLocked && (
+          <div
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-gray-800 text-white text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+            aria-hidden="true"
+          >
+            Hoàn thành bài trước để mở khóa
+          </div>
+        )}
       </div>
     </div>
   );
