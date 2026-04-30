@@ -110,7 +110,9 @@ export function ExerciseScreen({ lessonId, courseId, exercises }: Props) {
         <HeartDisplay hearts={hearts} maxHearts={gamification?.maxHearts ?? 5} />
       </div>
 
-      {renderExercise()}
+      <div key={currentExercise.id}>
+        {renderExercise()}
+      </div>
 
       {showFeedback && lastResult && (
         <FeedbackOverlay
