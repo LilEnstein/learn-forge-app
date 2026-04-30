@@ -67,3 +67,21 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Neutralize prism-tomorrow background so Tailwind bg-muted is used instead */
+code[class*="language-"],
+pre[class*="language-"] {
+  background: transparent !important;
+}
+
+/* Shimmer animation for completed checkpoint nodes on the learning map */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+.checkpoint-shimmer {
+  background: linear-gradient(90deg, #FCD34D 25%, #FBBF24 50%, #FCD34D 75%) !important;
+  background-size: 200% auto !important;
+  animation: shimmer 3s linear infinite;
+}
