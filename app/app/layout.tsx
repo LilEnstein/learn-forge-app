@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import Link from "next/link";
 import { BookOpen, Upload, MessageCircle, Trophy, User, Flame } from "lucide-react";
 import { Mascot } from "@/components/mascots/Mascot";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 const navItems = [
   { href: "/app/dashboard", icon: BookOpen, label: "Dashboard" },
@@ -42,11 +43,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           ))}
         </nav>
 
-        <div className="mt-auto flex items-center gap-3 rounded-lg border px-3 py-2">
-          <Mascot avatarKey={avatarKey} size={32} />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{session.user.name ?? "Learner"}</p>
-            <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
+        <div className="mt-auto flex flex-col gap-2">
+          <div className="flex justify-end">
+            <ThemeToggle />
+          </div>
+          <div className="flex items-center gap-3 rounded-lg border px-3 py-2">
+            <Mascot avatarKey={avatarKey} size={32} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{session.user.name ?? "Learner"}</p>
+              <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
+            </div>
           </div>
         </div>
       </aside>
