@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import type { MapLesson } from "./MapNode";
@@ -13,6 +14,15 @@ interface Props {
 export function LessonPreviewSheet({ lesson, courseId, onClose }: Props) {
   const router = useRouter();
   const isLocked = lesson?.status === "locked";
+
+  useEffect(() => {
+    if (!lesson) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [lesson, onClose]);
 
   function handleStart() {
     if (!lesson || isLocked) return;
@@ -34,6 +44,9 @@ export function LessonPreviewSheet({ lesson, courseId, onClose }: Props) {
 
           {/* Sheet */}
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={lesson.title}
             className="fixed bottom-0 left-0 right-0 bg-card rounded-t-2xl p-6 z-50 shadow-2xl max-w-2xl mx-auto"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
@@ -45,7 +58,7 @@ export function LessonPreviewSheet({ lesson, courseId, onClose }: Props) {
 
             {/* Lesson info */}
             <div className="flex items-start gap-4 mb-4">
-              <div className="text-3xl">{lesson.type === "checkpoint" ? "🏆" : "📘"}</div>
+              <div className="text-3xl" aria-hidden="true">{lesson.type === "checkpoint" ? "🏆" : "📘"}</div>
               <div className="flex-1">
                 <p className="font-bold text-lg leading-tight">{lesson.title}</p>
                 <p className="text-sm text-muted-foreground mt-0.5">
@@ -75,6 +88,7 @@ export function LessonPreviewSheet({ lesson, courseId, onClose }: Props) {
             <button
               onClick={handleStart}
               disabled={isLocked}
+              aria-label={lesson.status === "completed" ? "Review Lesson" : "Start Lesson"}
               className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
             >
               {lesson.status === "completed" ? "Review Lesson" : "Start Lesson →"}
