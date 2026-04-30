@@ -15,19 +15,15 @@ interface Props {
 async function loadLanguage(lang: string): Promise<void> {
   switch (lang) {
     case "python":
-      // @ts-ignore — no types for prismjs sub-components
       await import("prismjs/components/prism-python");
       break;
     case "sql":
-      // @ts-ignore — no types for prismjs sub-components
       await import("prismjs/components/prism-sql");
       break;
     case "typescript":
-      // @ts-ignore — no types for prismjs sub-components
       await import("prismjs/components/prism-typescript");
       break;
     case "bash":
-      // @ts-ignore — no types for prismjs sub-components
       await import("prismjs/components/prism-bash");
       break;
     // "javascript" is statically imported above — no case needed
