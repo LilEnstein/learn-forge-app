@@ -66,7 +66,9 @@ app/app/learn/[courseId]/page.tsx   (server)
 
 ### MapNode.tsx
 
-**Props:** `lesson: MapLesson`, `status`, `side: "left" | "right"`, `onClick`
+**Props:** `lesson: MapLesson`, `side: "left" | "right"`, `onClick`
+
+State is read as `lesson.status` — not a separate prop.
 
 **Layout:**
 - `side === "left"` → `ml-8`
@@ -85,7 +87,19 @@ app/app/learn/[courseId]/page.tsx   (server)
 |---|---|---|
 | `locked` | Gray `bg-muted`, `🔒`, dim (opacity 0.4), no animation | Gray hexagon, `🔒`, opacity 0.4 |
 | `available` | Violet `bg-violet-600`, violet pulse animation | Amber gradient `#F59E0B→#D97706`, `🏆` white, amber pulse |
-| `completed` | Violet `bg-violet-600`, `✓` checkmark | Gold gradient `#FCD34D→#F59E0B`, `⭐`, shimmer effect |
+| `completed` | Violet `bg-violet-600`, `✓` checkmark | Gold gradient `#FCD34D→#F59E0B`, `⭐`, shimmer overlay |
+
+**Shimmer on completed checkpoint:**
+```css
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+/* Applied as a pseudo-overlay inside the hexagon div */
+background: linear-gradient(90deg, #FCD34D 25%, #FBBF24 50%, #FCD34D 75%);
+background-size: 200% auto;
+animation: shimmer 3s linear infinite;
+```
 
 **Framer Motion — available node pulse:**
 ```tsx
