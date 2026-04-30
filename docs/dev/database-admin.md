@@ -33,6 +33,24 @@ $env:DATABASE_URL="postgresql://postgres:postgres@localhost:5433/learnforge"; np
 
 ---
 
+### Hoàn thành lesson (bypass exercises)
+
+Dùng để test flow sau completion: XP award, result screen, unlock next lesson.
+
+```powershell
+$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5433/learnforge"; npx tsx scripts/complete-lesson.ts <lessonId>
+# lessonId lấy từ URL: /app/learn/.../lesson/<lessonId>
+
+# Ví dụ
+$env:DATABASE_URL="..."; npx tsx scripts/complete-lesson.ts cmoiyja2l001ox8k6m391o8zq
+```
+
+Script tự động: mark completed + unlock lesson tiếp + restore 5 hearts.
+
+**File:** `scripts/complete-lesson.ts`
+
+---
+
 ### Thêm / set gems
 
 ```powershell
