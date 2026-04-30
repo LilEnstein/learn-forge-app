@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { MapNode, type MapLesson } from "./MapNode";
 import { ChapterHeader } from "./ChapterHeader";
 import { LessonPreviewSheet } from "./LessonPreviewSheet";
@@ -59,10 +60,19 @@ export function LearningMap({ lessons, courseId, courseEmoji, courseTitle, compl
               />
 
               {showConnector && (
-                <div
-                  className={`mx-auto rounded-full ${connectorIsAmber ? "bg-amber-400" : "bg-violet-300"}`}
-                  style={{ width: connectorIsAmber ? 3 : 2, height: 32 }}
-                />
+                <div className="flex justify-center" style={{ height: 40 }}>
+                  <svg width="4" height="40" overflow="visible">
+                    <motion.line
+                      x1="2" y1="0" x2="2" y2="40"
+                      stroke={connectorIsAmber ? "#fbbf24" : "#c4b5fd"}
+                      strokeWidth={connectorIsAmber ? 3 : 2}
+                      strokeLinecap="round"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.4, delay: index * 0.08, ease: "easeOut" }}
+                    />
+                  </svg>
+                </div>
               )}
             </div>
           );
