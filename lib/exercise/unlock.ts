@@ -9,6 +9,7 @@ export async function unlockNextLesson(
     include: {
       chapter: {
         include: {
+          lessons: { orderBy: { order: "asc" } },
           course: {
             include: {
               chapters: {
