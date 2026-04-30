@@ -27,6 +27,7 @@ export const ExerciseSchema = z.object({
   correctAnswer: z.union([z.string(), z.array(z.string()), z.boolean()]),
   explanation: z.string().optional(),
   difficulty: z.number().int().min(1).max(3).default(1),
+  language: z.string().optional(), // for code_fill_blank: "javascript" | "python" | "sql" | "typescript" | "bash"
 });
 
 export const ExercisesArraySchema = z.array(ExerciseSchema).min(1).max(10);
