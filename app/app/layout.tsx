@@ -1,7 +1,6 @@
 import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import Link from "next/link";
-import { Providers } from "@/components/providers";
 import { BookOpen, Upload, MessageCircle, Trophy, User, Flame } from "lucide-react";
 import { Mascot } from "@/components/mascots/Mascot";
 
@@ -65,7 +64,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <div className="flex-1 p-6"><Providers>{children}</Providers></div>
+        <div className="flex-1 p-6">{children}</div>
       </main>
     </div>
   );
