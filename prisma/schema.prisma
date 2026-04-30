@@ -158,10 +158,12 @@ model LessonProgress {
   id          String    @id @default(cuid())
   userId      String
   lessonId    String
-  status      String    @default("locked") // "locked" | "available" | "in_progress" | "completed"
+  status      String    @default("locked")
   score       Int?
   attempts    Int       @default(0)
   xpEarned    Int       @default(0)
+  answeredIds Json      @default("[]")
+  perfect     Boolean   @default(true)
   completedAt DateTime?
   user        User      @relation(fields: [userId], references: [id])
   lesson      Lesson    @relation(fields: [lessonId], references: [id])
@@ -185,13 +187,13 @@ model UserGamification {
 }
 
 model StreakRecord {
-  id             String    @id @default(cuid())
-  userId         String    @unique
-  currentStreak  Int       @default(0)
-  longestStreak  Int       @default(0)
-  lastActivityAt DateTime?
-  frozenAt       DateTime?
-  user           User      @relation(fields: [userId], references: [id])
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  currentStreak    Int     @default(0)
+  longestStreak    Int     @default(0)
+  lastActivityDate String?
+  frozenAt         String?
+  user             User    @relation(fields: [userId], references: [id])
 }
 
 model DailyQuest {
@@ -205,13 +207,13 @@ model DailyQuest {
 }
 
 model DailyQuestProgress {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   userId    String
   questId   String
-  date      DateTime @default(now())
-  progress  Int      @default(0)
-  completed Boolean  @default(false)
-  user      User     @relation(fields: [userId], references: [id])
+  date      String
+  progress  Int     @default(0)
+  completed Boolean @default(false)
+  user      User    @relation(fields: [userId], references: [id])
 
   @@unique([userId, questId, date])
 }
