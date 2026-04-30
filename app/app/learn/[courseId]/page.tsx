@@ -41,6 +41,21 @@ export default async function CoursePage({ params }: Props) {
     where: { userId, lessonId: { in: lessonIds } },
     select: { lessonId: true, status: true },
   });
+
+  // Seed first lesson as "available" for brand-new courses that have no progress yet
+  const firstLessonId = lessonIds[0];
+  if (
+    firstLessonId &&
+    progressRows.length === 0
+  ) {
+    await prisma.lessonProgress.upsert({
+      where: { userId_lessonId: { userId, lessonId: firstLessonId } },
+      create: { userId, lessonId: firstLessonId, status: "available" },
+      update: {},
+    });
+    progressRows.push({ lessonId: firstLessonId, status: "available" });
+  }
+
   const progressMap = new Map(progressRows.map((p) => [p.lessonId, p.status]));
 
   const mapLessons: MapLesson[] = course.chapters.flatMap((ch) =>
