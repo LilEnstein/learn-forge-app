@@ -10,18 +10,18 @@ export async function GET(
   const { userId } = params;
   const weekId = getCurrentWeekId();
 
-  const [userRow, allProgress, xpTransactions, heatmapRows] = await Promise.all([
+  const [userRow, allProgress, xpTransactions, heatmapRows, allLeagueEntries] = await Promise.all([
     // Query 1: User + gamification + streak + league
     prisma.user.findUnique({
       where: { id: userId },
       select: {
         name: true,
         avatarKey: true,
-        gamification: { select: { totalXp: true, weeklyXp: true, gems: true } },
+        gamification: { select: { totalXp: true, weeklyXp: true } },
         streakRecord: { select: { currentStreak: true, longestStreak: true, frozenAt: true } },
         leagueEntry: {
           where: { weekId },
-          select: { league: true, weeklyXp: true, promoted: true, relegated: true },
+          select: { league: true, weeklyXp: true, promoted: true },
           take: 1,
         },
       },
@@ -71,6 +71,12 @@ export async function GET(
       GROUP BY DATE("completedAt" AT TIME ZONE 'Asia/Ho_Chi_Minh')
       ORDER BY date
     `,
+
+    // Query 5: All league entries for badge derivation (all-time promoted history)
+    prisma.leagueEntry.findMany({
+      where: { userId },
+      select: { promoted: true },
+    }),
   ]);
 
   if (!userRow) {
@@ -101,12 +107,6 @@ export async function GET(
     total: c.total,
     accuracy: c.scoredCount > 0 ? Math.round(c.totalScore / c.scoredCount) : null,
   }));
-
-  // Collect all league entries (promoted history) for badge derivation
-  const allLeagueEntries = await prisma.leagueEntry.findMany({
-    where: { userId },
-    select: { promoted: true },
-  });
 
   const badges = deriveBadges({
     streakRecord: userRow.streakRecord ?? { currentStreak: 0, longestStreak: 0 },
