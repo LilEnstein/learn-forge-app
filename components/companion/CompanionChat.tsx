@@ -62,18 +62,20 @@ export function CompanionChat({ context }: Props) {
       if (!res.ok || !res.body) throw new Error("Request failed");
 
       const reader = res.body.getReader();
-      const decoder = new TextDecoder();
+      const decoder = new TextDecoder("utf-8");
       let receivedDone = false;
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n\n");
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6);
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+        for (const frame of frames) {
+          if (!frame.startsWith("data: ")) continue;
+          const data = frame.slice(6);
           if (data === "[DONE]") { receivedDone = true; break; }
           setMessages((prev) => {
             const next = [...prev];
@@ -91,7 +93,9 @@ export function CompanionChat({ context }: Props) {
         setMessages((prev) => {
           const next = [...prev];
           const last = next[next.length - 1];
-          next[next.length - 1] = { ...last, content: "Companion gặp sự cố, thử lại nhé.", error: true };
+          if (!last.content) {
+            next[next.length - 1] = { ...last, content: "Companion gặp sự cố, thử lại nhé.", error: true };
+          }
           return next;
         });
       }
