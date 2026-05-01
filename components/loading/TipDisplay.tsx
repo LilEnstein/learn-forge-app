@@ -10,15 +10,18 @@ export function TipDisplay({ tip }: Props) {
   const [displayed, setDisplayed] = useState('')
   const [opacity, setOpacity] = useState(1)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const prevTipRef = useRef('')
 
   useEffect(() => {
-    // Fade out, then reset typewriter with new tip
-    setOpacity(0)
+    // Only fade out when the tip actually changes (e.g. RAG tip replaces static tip).
+    // On first mount skip the delay so text is visible immediately.
+    const tipChanged = prevTipRef.current !== '' && prevTipRef.current !== tip
+    prevTipRef.current = tip
 
-    const fadeTimeout = setTimeout(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+
+    const startTyping = () => {
       setDisplayed('')
-      setOpacity(1)
-
       let i = 0
       intervalRef.current = setInterval(() => {
         i++
@@ -27,10 +30,24 @@ export function TipDisplay({ tip }: Props) {
           clearInterval(intervalRef.current)
         }
       }, 30)
-    }, 200)
+    }
+
+    if (tipChanged) {
+      setOpacity(0)
+      const fadeTimeout = setTimeout(() => {
+        setOpacity(1)
+        startTyping()
+      }, 200)
+      return () => {
+        clearTimeout(fadeTimeout)
+        if (intervalRef.current) clearInterval(intervalRef.current)
+      }
+    }
+
+    // First mount: type immediately, no fade delay
+    startTyping()
 
     return () => {
-      clearTimeout(fadeTimeout)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [tip])
