@@ -14,10 +14,22 @@ describe("deriveBadges", () => {
     expect(badges.every((b) => !b.earned)).toBe(true);
   });
 
-  it("streak7 earned at 7+ days", () => {
-    const badges = deriveBadges({ ...baseData, streakRecord: { currentStreak: 7, longestStreak: 7 } });
+  it("streak7 earned when longestStreak >= 7, streak30 not yet", () => {
+    const badges = deriveBadges({ ...baseData, streakRecord: { currentStreak: 0, longestStreak: 7 } });
     expect(badges.find((b) => b.id === "streak7")?.earned).toBe(true);
     expect(badges.find((b) => b.id === "streak30")?.earned).toBe(false);
+  });
+
+  it("streak badge persists even when currentStreak is 0 (broken streak)", () => {
+    const badges = deriveBadges({ ...baseData, streakRecord: { currentStreak: 0, longestStreak: 30 } });
+    expect(badges.find((b) => b.id === "streak7")?.earned).toBe(true);
+    expect(badges.find((b) => b.id === "streak30")?.earned).toBe(true);
+    expect(badges.find((b) => b.id === "streak100")?.earned).toBe(false);
+  });
+
+  it("course_complete NOT earned when total === 0", () => {
+    const badges = deriveBadges({ ...baseData, courseStats: [{ completed: 0, total: 0 }] });
+    expect(badges.find((b) => b.id === "course_complete")?.earned).toBe(false);
   });
 
   it("perfect score badge earned when any lesson has score 100", () => {

@@ -25,9 +25,10 @@ export function deriveBadges(data: BadgeInput): Badge[] {
   const { streakRecord, lessonProgress, courseStats, leagueEntries } = data;
   return BADGE_DEFS.map((def) => {
     let earned = false;
-    if (def.id === "streak7")        earned = streakRecord.currentStreak >= 7;
-    if (def.id === "streak30")       earned = streakRecord.currentStreak >= 30;
-    if (def.id === "streak100")      earned = streakRecord.currentStreak >= 100;
+    // Use longestStreak — streak badges are permanent achievements, not revoked if streak breaks.
+    if (def.id === "streak7")        earned = streakRecord.longestStreak >= 7;
+    if (def.id === "streak30")       earned = streakRecord.longestStreak >= 30;
+    if (def.id === "streak100")      earned = streakRecord.longestStreak >= 100;
     if (def.id === "perfect")        earned = lessonProgress.some((p) => p.score === 100);
     if (def.id === "course_complete") earned = courseStats.some((c) => c.total > 0 && c.completed === c.total);
     if (def.id === "promoted")       earned = leagueEntries.some((e) => e.promoted);
