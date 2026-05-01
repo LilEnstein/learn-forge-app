@@ -225,3 +225,87 @@ export function getLLM(): (messages: ChatMessage[]) => Promise<string> {
     return res.message.content;
   };
 }
+
+export function getLLMStream(): (messages: ChatMessage[]) => AsyncIterable<string> {
+  if (AI_PROVIDER === "openai") {
+    const openai = getOpenAI();
+    const model = process.env.OPENAI_MODEL ?? "gpt-4o";
+    return async function* (messages) {
+      const stream = await openai.chat.completions.create({ model, messages, stream: true });
+      for await (const chunk of stream) {
+        const token = chunk.choices[0]?.delta?.content;
+        if (token) yield token;
+      }
+    };
+  }
+
+  if (AI_PROVIDER === "gemini") {
+    const genAI = getGemini();
+    return async function* (messages) {
+      const systemMsg = messages.find((m) => m.role === "system");
+      const chatMsgs = messages.filter((m) => m.role !== "system");
+      const history = chatMsgs.slice(0, -1).map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      }));
+      const last = chatMsgs[chatMsgs.length - 1];
+      const modelChain = getGeminiModelChain();
+      const geminiModel = genAI.getGenerativeModel({
+        model: modelChain[0],
+        systemInstruction: systemMsg?.content,
+      });
+      const chat = geminiModel.startChat({ history });
+      const result = await chat.sendMessageStream(last.content);
+      for await (const chunk of result.stream) {
+        const token = chunk.text();
+        if (token) yield token;
+      }
+    };
+  }
+
+  if (AI_PROVIDER === "groq") {
+    const groq = getGroq();
+    const model = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+    return async function* (messages) {
+      const stream = await groq.chat.completions.create({ model, messages, stream: true });
+      for await (const chunk of stream) {
+        const token = chunk.choices[0]?.delta?.content;
+        if (token) yield token;
+      }
+    };
+  }
+
+  if (AI_PROVIDER === "cerebras") {
+    const cerebras = getCerebras();
+    const model = process.env.CEREBRAS_MODEL ?? "llama3.1-8b";
+    return async function* (messages) {
+      const stream = await cerebras.chat.completions.create({ model, messages, stream: true });
+      for await (const chunk of stream) {
+        const token = chunk.choices[0]?.delta?.content;
+        if (token) yield token;
+      }
+    };
+  }
+
+  if (AI_PROVIDER === "openai-compat") {
+    const compat = getOpenAICompat();
+    const model = process.env.OPENAI_COMPAT_MODEL ?? "";
+    return async function* (messages) {
+      const stream = await compat.chat.completions.create({ model, messages, stream: true });
+      for await (const chunk of stream) {
+        const token = chunk.choices[0]?.delta?.content;
+        if (token) yield token;
+      }
+    };
+  }
+
+  // Ollama
+  const ollama = getOllama();
+  const ollamaModel = process.env.OLLAMA_MODEL ?? "llama3.1";
+  return async function* (messages) {
+    const stream = await ollama.chat({ model: ollamaModel, messages, stream: true });
+    for await (const chunk of stream) {
+      if (chunk.message.content) yield chunk.message.content;
+    }
+  };
+}
