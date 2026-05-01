@@ -91,9 +91,7 @@ export function CompanionChat({ context }: Props) {
         setMessages((prev) => {
           const next = [...prev];
           const last = next[next.length - 1];
-          if (!last.content) {
-            next[next.length - 1] = { ...last, content: "Companion gặp sự cố, thử lại nhé.", error: true };
-          }
+          next[next.length - 1] = { ...last, content: "Companion gặp sự cố, thử lại nhé.", error: true };
           return next;
         });
       }
