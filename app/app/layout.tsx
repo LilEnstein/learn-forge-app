@@ -4,6 +4,9 @@ import Link from "next/link";
 import { BookOpen, Upload, MessageCircle, Trophy, User, Flame } from "lucide-react";
 import { Mascot } from "@/components/mascots/Mascot";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { NavigationOverlay } from "@/components/loading/NavigationOverlay";
+import { CompanionBubble } from "@/components/companion/CompanionBubble";
+import type { AvatarKey } from "@/lib/mascots/config";
 
 const navItems = [
   { href: "/app/dashboard", icon: BookOpen, label: "Dashboard" },
@@ -23,6 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen bg-background">
+      <NavigationOverlay avatarKey={avatarKey as AvatarKey} />
       {/* Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r bg-card px-4 py-6 gap-2">
         <Link href="/app/dashboard" className="flex items-center gap-2 px-2 mb-6">
@@ -71,6 +75,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </header>
 
         <div className="flex-1 p-6">{children}</div>
+        <CompanionBubble />
       </main>
     </div>
   );
