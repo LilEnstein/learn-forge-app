@@ -60,6 +60,7 @@
     "react-dom": "^18",
     "react-hook-form": "^7.54.2",
     "react-simple-code-editor": "^0.14.1",
+    "recharts": "^3.8.1",
     "tailwind-merge": "^2.5.5",
     "tailwindcss": "^3.4.1",
     "tiktoken": "^1.0.22",
