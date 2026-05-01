@@ -85,7 +85,7 @@ export function NavigationOverlay({ avatarKey }: { avatarKey: AvatarKey }) {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 50,
+        zIndex: 100,
         opacity: fading ? 0 : 1,
         transition: `opacity ${FADE_MS}ms ease`,
       }}
