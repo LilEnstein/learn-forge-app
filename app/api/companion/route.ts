@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { getLLMStream } from "@/lib/ai/provider";
 import type { ChatMessage } from "@/lib/ai/provider";
+import { getProviderForUser } from "@/lib/ai/user-provider";
+import { NoAiKeyError, InvalidUserKeyError } from "@/lib/ai/errors";
 import type { CompanionContext } from "@/lib/companion/useCompanionContext";
 
 const BodySchema = z.object({
@@ -66,6 +67,7 @@ function buildSystemPrompt(userName: string, ctx: CompanionContext, strings: Con
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
+  const userId = session.user.id as string;
   const userName = session.user?.name ?? "bạn";
 
   const body = await req.json();
@@ -75,6 +77,19 @@ export async function POST(req: NextRequest) {
   }
   const { messages, context } = parsed.data;
 
+  let provider;
+  try {
+    provider = await getProviderForUser(userId);
+  } catch (err) {
+    if (err instanceof NoAiKeyError) {
+      return NextResponse.json({ error: err.message }, { status: 503 });
+    }
+    if (err instanceof InvalidUserKeyError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    throw err;
+  }
+
   const strings = await resolveContextStrings(context as CompanionContext);
   const systemPrompt = buildSystemPrompt(userName, context as CompanionContext, strings);
 
@@ -83,7 +98,7 @@ export async function POST(req: NextRequest) {
     ...messages,
   ];
 
-  const streamFn = getLLMStream();
+  const streamFn = provider.getLLMStream();
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -93,7 +108,9 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${token}\n\n`));
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-      } catch {
+      } catch (err) {
+        console.error("[companion] LLM stream error:", err);
+        controller.enqueue(encoder.encode("data: [ERROR]\n\n"));
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       } finally {
         controller.close();
