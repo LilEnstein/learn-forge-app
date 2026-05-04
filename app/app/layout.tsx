@@ -1,7 +1,7 @@
 import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import Link from "next/link";
-import { BookOpen, Upload, MessageCircle, Trophy, User, Flame } from "lucide-react";
+import { BookOpen, Upload, MessageCircle, Trophy, User, Flame, Settings } from "lucide-react";
 import { Mascot } from "@/components/mascots/Mascot";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { NavigationOverlay } from "@/components/loading/NavigationOverlay";
@@ -14,6 +14,7 @@ const navItems = [
   { href: "/app/companion", icon: MessageCircle, label: "Companion" },
   { href: "/app/leaderboard", icon: Trophy, label: "Leaderboard" },
   { href: "/app/profile", icon: User, label: "Profile" },
+  { href: "/app/settings", icon: Settings, label: "Settings" },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -75,7 +76,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </header>
 
         <div className="flex-1 p-6">{children}</div>
-        <CompanionBubble />
+        <CompanionBubble userId={session.user.id} />
       </main>
     </div>
   );
