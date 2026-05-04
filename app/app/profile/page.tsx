@@ -1,5 +1,7 @@
+import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
+import { getTodayDateString } from "@/lib/gamification/streak";
 import { IdentityBlock } from "@/components/profile/IdentityBlock";
 import { ProfileTabs } from "@/components/profile/ProfileTabs";
 
@@ -14,12 +16,13 @@ export default async function OwnProfilePage() {
     prisma.dailyQuestProgress.findMany({
       where: {
         userId,
-        date: new Date().toISOString().slice(0, 10),
+        date: getTodayDateString(),
       },
       select: { completed: true },
     }),
   ]);
 
+  if (!profileRes.ok) notFound();
   const profile = await profileRes.json();
   const questCompleted = questRes.filter((q) => q.completed).length;
   const questTotal = questRes.length;
