@@ -1,13 +1,48 @@
-import { User } from "lucide-react";
+import { requireSession } from "@/lib/auth/session";
+import { prisma } from "@/lib/db/prisma";
+import { IdentityBlock } from "@/components/profile/IdentityBlock";
+import { ProfileTabs } from "@/components/profile/ProfileTabs";
 
-export default function ProfilePage() {
+export default async function OwnProfilePage() {
+  const session = await requireSession();
+  const userId = session.user.id!;
+
+  const [profileRes, questRes] = await Promise.all([
+    fetch(`${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/api/profile/${userId}`, {
+      cache: "no-store",
+    }),
+    prisma.dailyQuestProgress.findMany({
+      where: {
+        userId,
+        date: new Date().toISOString().slice(0, 10),
+      },
+      select: { completed: true },
+    }),
+  ]);
+
+  const profile = await profileRes.json();
+  const questCompleted = questRes.filter((q) => q.completed).length;
+  const questTotal = questRes.length;
+
   return (
-    <div className="max-w-2xl mx-auto flex flex-col items-center justify-center py-24 text-center space-y-4">
-      <div className="rounded-full bg-muted p-6">
-        <User className="h-10 w-10 text-muted-foreground" />
-      </div>
-      <h1 className="text-2xl font-bold">Profile & Stats</h1>
-      <p className="text-muted-foreground">Coming soon — XP history, badges, and more.</p>
+    <div className="max-w-2xl mx-auto space-y-6 pb-24">
+      <IdentityBlock
+        name={profile.user.name}
+        avatarKey={profile.user.avatarKey}
+        totalXp={profile.user.totalXp}
+        currentStreak={profile.user.currentStreak}
+        longestStreak={profile.user.longestStreak}
+        league={profile.user.league}
+      />
+      <ProfileTabs
+        heatmap={profile.heatmap}
+        xpByWeek={profile.xpByWeek}
+        badges={profile.badges}
+        courseStats={profile.courseStats}
+        currentStreak={profile.user.currentStreak}
+        longestStreak={profile.user.longestStreak}
+        questSummary={questTotal > 0 ? { completed: questCompleted, total: questTotal } : null}
+      />
     </div>
   );
 }
