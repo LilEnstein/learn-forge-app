@@ -56,20 +56,18 @@ async function verifyKey(input: SaveKeyInput): Promise<void> {
     provider,
     apiKey,
     openAiCompatBaseUrl,
-    capableModel: VERIFY_MODELS[provider],
+    capableModel: VERIFY_MODELS[provider] ?? input.capableModel ?? input.fastModel,
   })
   const llm = verifyProvider.getLLM()
 
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS)
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(Object.assign(new Error("timeout"), { isTimeout: true })), VERIFY_TIMEOUT_MS)
+  )
 
   try {
-    await llm([{ role: "user", content: "Hi" }])
+    await Promise.race([llm([{ role: "user", content: "Hi" }]), timeoutPromise])
   } catch (err: any) {
-    if (err.name === "AbortError" || err.code === "ECONNABORTED") {
-      throw Object.assign(new Error("timeout"), { isTimeout: true })
-    }
-    // Map provider HTTP errors to user-friendly messages
+    if (err.isTimeout) throw err
     const status = err.status ?? err.statusCode ?? 0
     if (status === 401 || status === 403) {
       throw Object.assign(new Error("invalid_key"), { isInvalidKey: true })
@@ -78,8 +76,6 @@ async function verifyKey(input: SaveKeyInput): Promise<void> {
       throw Object.assign(new Error("rate_limited"), { isRateLimited: true })
     }
     throw err
-  } finally {
-    clearTimeout(timer)
   }
 }
 
@@ -131,7 +127,8 @@ export async function saveUserApiKey(
   })
 
   revalidatePath("/app/settings")
-  return { maskedKey: maskKey(plainKey || parsed.data.ollamaBaseUrl || ""), provider: parsed.data.provider, verifiedAt }
+  const displayValue = plainKey || parsed.data.ollamaBaseUrl || (parsed.data.provider === "ollama" ? "http://localhost:11434" : "")
+  return { maskedKey: maskKey(displayValue), provider: parsed.data.provider, verifiedAt }
 }
 
 export async function deleteUserApiKey(): Promise<void> {
@@ -151,7 +148,7 @@ export async function getUserApiKeyStatus(): Promise<{
 
   const plainKey = record.encryptedKey
     ? decryptKey(record.encryptedKey, record.iv, record.authTag)
-    : (record.ollamaBaseUrl ?? "")
+    : (record.ollamaBaseUrl ?? (record.provider === "ollama" ? "http://localhost:11434" : ""))
 
   return {
     provider: record.provider,
