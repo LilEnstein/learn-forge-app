@@ -12,10 +12,11 @@ export interface RetrievedChunk {
 export async function retrieveChunks(
   query: string,
   userId: string,
-  opts?: { courseId?: string; topK?: number }
+  opts?: { courseId?: string; topK?: number },
+  embedFn?: (text: string) => Promise<number[]>  // optional — if not provided, falls back to global
 ): Promise<RetrievedChunk[]> {
   const topK = opts?.topK ?? 10;
-  const embed = getEmbeddingModel();
+  const embed = embedFn ?? getEmbeddingModel();
   const queryEmbedding = await embed(query);
   const embeddingStr = `[${queryEmbedding.join(",")}]`;
 

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { getLLM } from "@/lib/ai/provider";
+import { getProviderForUser } from "@/lib/ai/user-provider";
 import { retrieveChunks } from "@/lib/ai/rag/retrieve";
 import { buildCurriculumPrompt } from "@/lib/ai/prompts/curriculum.prompt";
 import { CurriculumSchema } from "./schemas";
@@ -22,14 +22,17 @@ export async function generateCurriculum(courseId: string): Promise<void> {
   const existingChapters = await prisma.chapter.count({ where: { courseId } });
   if (existingChapters > 0) return;
 
-  const chunks = await retrieveChunks(course.title, course.user.id, { courseId, topK: 30 });
+  // Resolve user's AI provider once for this job
+  const provider = await getProviderForUser(course.user.id);
+  const llm = provider.getLLM("ingest");
+  const embedFn = provider.getEmbeddingModel();
+
+  const chunks = await retrieveChunks(course.title, course.user.id, { courseId, topK: 30 }, embedFn);
   const { system, user } = buildCurriculumPrompt({
     chunks: chunks.map((c) => c.content),
     courseTitle: course.title,
     topic: course.topic,
   });
-
-  const llm = getLLM();
   let raw: string;
   try {
     raw = await llm([

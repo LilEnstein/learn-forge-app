@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { parseFile } from "./parser";
 import { chunkText } from "./chunker";
-import { getEmbeddingModel } from "@/lib/ai/provider";
+import { getProviderForUser } from "@/lib/ai/user-provider";
 
 /**
  * Run the full RAG ingestion pipeline for one document:
@@ -14,6 +14,10 @@ export async function ingestDocument(documentId: string): Promise<void> {
   if (doc.status === "ready") return;
 
   console.log(`[ingest] start: ${doc.name} (${doc.id})`);
+
+  // Resolve user's AI provider once for this job
+  const provider = await getProviderForUser(doc.userId);
+  const embed = provider.getEmbeddingModel("ingest");
 
   try {
     // 1. Parse → plain text
@@ -33,7 +37,6 @@ export async function ingestDocument(documentId: string): Promise<void> {
     }
 
     // 3. Embed + insert (sequential to avoid rate-limiting; batched concurrently per BATCH_SIZE)
-    const embed = getEmbeddingModel();
     const BATCH_SIZE = 5;
 
     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {

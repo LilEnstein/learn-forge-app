@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { getLLM } from "@/lib/ai/provider";
+import { getProviderForUser } from "@/lib/ai/user-provider";
 import { retrieveChunks } from "@/lib/ai/rag/retrieve";
 import { buildExercisePrompt } from "@/lib/ai/prompts/exercise.prompt";
 import { ExercisesArraySchema } from "./schemas";
@@ -28,16 +28,19 @@ export async function generateExercises(lessonId: string): Promise<void> {
   const userId = course.user.id;
   const topicKeywords = lesson.topicKeywords.length > 0 ? lesson.topicKeywords : [lesson.title];
 
+  // Resolve user's AI provider once for this job
+  const provider = await getProviderForUser(userId);
+  const llm = provider.getLLM("ingest");
+  const embedFn = provider.getEmbeddingModel();
+
   const queryText = topicKeywords.join(" ");
-  const chunks = await retrieveChunks(queryText, userId, { courseId: course.id, topK: 10 });
+  const chunks = await retrieveChunks(queryText, userId, { courseId: course.id, topK: 10 }, embedFn);
 
   const { system, user } = buildExercisePrompt({
     lessonTitle: lesson.title,
     topicKeywords,
     chunks: chunks.map((c) => c.content),
   });
-
-  const llm = getLLM();
   let raw: string;
   try {
     raw = await llm([
