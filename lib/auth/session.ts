@@ -11,3 +11,10 @@ export async function requireSession() {
   if (!session?.user?.id) redirect("/login");
   return session;
 }
+
+export async function requireAdmin() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  if (session.user.role !== "admin") redirect("/app/dashboard");
+  return session;
+}

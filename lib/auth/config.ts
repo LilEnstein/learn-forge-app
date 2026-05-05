@@ -14,6 +14,8 @@ const credentialsSchema = z.object({
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  trustHost: true,
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
@@ -40,19 +42,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     GitHub({
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true,
     }),
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true,
     }),
   ],
   callbacks: {
+    async signIn({ user }) {
+      // Bootstrap admins from env (idempotent on every sign-in)
+      if (!user.id || !user.email) return true;
+      const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+      if (adminEmails.includes(user.email.toLowerCase())) {
+        await prisma.user.update({ where: { id: user.id }, data: { role: "admin" } });
+      }
+      return true;
+    },
     async jwt({ token, user }) {
-      if (user) token.id = user.id;
+      if (user) {
+        token.id = user.id;
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { role: true, tier: true },
+        });
+        token.role = dbUser?.role ?? "user";
+        token.tier = dbUser?.tier ?? "free";
+      }
       return token;
     },
     async session({ session, token }) {
       if (token.id) session.user.id = token.id as string;
+      session.user.role = (token.role as string) ?? "user";
+      session.user.tier = (token.tier as string) ?? "free";
       return session;
     },
   },

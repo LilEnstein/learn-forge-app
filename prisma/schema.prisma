@@ -21,6 +21,9 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  role  String @default("user") // "user" | "admin"
+  tier  String @default("free") // "free" | "pro" | "byok"
+
   // onboarding preferences
   onboardingDone Boolean @default(false)
   dailyGoalMin   Int     @default(10)

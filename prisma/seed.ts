@@ -3,6 +3,32 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
+  // Pre-seed known accounts so role/tier are set before first sign-in
+  const sangUser = await prisma.user.upsert({
+    where: { email: "nguyenanhsangai@gmail.com" },
+    update: {},
+    create: {
+      email: "nguyenanhsangai@gmail.com",
+      name: "Nguyen Anh Sang",
+      role: "user",
+      tier: "free",
+    },
+  });
+  // Ensure gamification + streak rows exist (normally created by createUser event)
+  await prisma.$transaction([
+    prisma.userGamification.upsert({
+      where: { userId: sangUser.id },
+      update: {},
+      create: { userId: sangUser.id },
+    }),
+    prisma.streakRecord.upsert({
+      where: { userId: sangUser.id },
+      update: {},
+      create: { userId: sangUser.id },
+    }),
+  ]);
+  console.log(`Upserted user: ${sangUser.email}`);
+
   await prisma.dailyQuest.deleteMany();
 
   await prisma.dailyQuest.createMany({
