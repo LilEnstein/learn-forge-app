@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { getProviderForUser } from "@/lib/ai/user-provider";
+import { withFailover } from "@/lib/ai/with-failover";
 import { retrieveChunks } from "@/lib/ai/rag/retrieve";
 import { buildExercisePrompt } from "@/lib/ai/prompts/exercise.prompt";
 import { ExercisesArraySchema } from "./schemas";
@@ -28,25 +28,27 @@ export async function generateExercises(lessonId: string): Promise<void> {
   const userId = course.user.id;
   const topicKeywords = lesson.topicKeywords.length > 0 ? lesson.topicKeywords : [lesson.title];
 
-  // Resolve user's AI provider once for this job
-  const provider = await getProviderForUser(userId);
-  const llm = provider.getLLM("ingest");
-  const embedFn = provider.getEmbeddingModel();
-
   const queryText = topicKeywords.join(" ");
-  const chunks = await retrieveChunks(queryText, userId, { courseId: course.id, topK: 10 }, embedFn);
+  const chunks = await withFailover(userId, "embedding", async (provider) => {
+    const embedFn = provider.getEmbeddingModel();
+    return retrieveChunks(queryText, userId, { courseId: course.id, topK: 10 }, embedFn);
+  });
 
   const { system, user } = buildExercisePrompt({
     lessonTitle: lesson.title,
     topicKeywords,
     chunks: chunks.map((c) => c.content),
   });
+
   let raw: string;
   try {
-    raw = await llm([
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ]);
+    raw = await withFailover(userId, "courseGen", async (provider) => {
+      const llm = provider.getLLM("ingest");
+      return llm([
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ]);
+    });
   } catch (err) {
     console.error(`Exercise generation failed for lesson ${lessonId}:`, err);
     return;

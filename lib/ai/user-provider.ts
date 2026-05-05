@@ -2,6 +2,9 @@ import { prisma } from "@/lib/db/prisma"
 import { decryptKey } from "./crypto"
 import { createProvider, getLLM, getLLMStream, getEmbeddingModel, type AIProvider, type ProviderConfig } from "./provider"
 import { NoAiKeyError, InvalidUserKeyError } from "./errors"
+import type { TaskType } from "./types"
+import { TASK_ENV_FALLBACK } from "./types"
+import { getDefaultKey } from "./keys"
 
 const LLM_ONLY_PROVIDERS = new Set(["groq", "cerebras"])
 
@@ -37,7 +40,6 @@ async function tryPoolKey(provider: string): Promise<AIProvider | null> {
   const today = new Date().toISOString().slice(0, 10)
 
   for (const key of keys) {
-    // Reset counter if it's a new day
     if (key.lastResetAt.toISOString().slice(0, 10) < today) {
       await prisma.poolKey.update({
         where: { id: key.id },
@@ -56,23 +58,50 @@ async function tryPoolKey(provider: string): Promise<AIProvider | null> {
   return null
 }
 
-export async function getProviderForUser(userId: string): Promise<AIProvider> {
-  const record = await prisma.userApiKey.findUnique({ where: { userId } })
+/**
+ * Resolves which model name to use for a given task. Falls back through:
+ *   1. UserModelConfig override for the task
+ *   2. Env var listed in TASK_ENV_FALLBACK[task]
+ *   3. undefined → provider uses its own default
+ */
+export async function resolveModelForTask(
+  userId: string,
+  task: TaskType
+): Promise<string | undefined> {
+  const config = await prisma.userModelConfig.findUnique({ where: { userId } })
+  if (config && config[task]) return config[task] as string
+  const envName = TASK_ENV_FALLBACK[task]
+  return envName ? process.env[envName] : undefined
+}
+
+/**
+ * Returns an AIProvider for the given user.
+ * Resolution order:
+ *   1. User's default UserApiKey with status="active" → decrypt → createProvider
+ *   2. No active user key but env var configured → defaultProvider (env-backed)
+ *   3. No env key but admin pool has keys → pool key
+ *   4. Else throw NoAiKeyError
+ *
+ * The optional `task` argument allows the caller to pick the model configured
+ * for that task (per-task model selection from Feature 10).
+ */
+export async function getProviderForUser(userId: string, task?: TaskType): Promise<AIProvider> {
+  const record = await getDefaultKey(userId)
 
   if (record) {
-    if (!record.verifiedAt) throw new InvalidUserKeyError()
+    if (record.status === "invalid") throw new InvalidUserKeyError()
 
-    const apiKey = decryptKey(record.encryptedKey, record.iv, record.authTag)
+    const apiKey = record.encryptedKey ? decryptKey(record.encryptedKey, record.iv, record.authTag) : ""
+    const taskModel = task ? await resolveModelForTask(userId, task) : undefined
 
     const config: ProviderConfig = {
       provider: record.provider,
       apiKey,
       ollamaBaseUrl: record.ollamaBaseUrl ?? undefined,
-      capableModel: record.capableModel ?? undefined,
-      fastModel: record.fastModel ?? undefined,
+      capableModel: task === "embedding" ? undefined : taskModel,
+      fastModel: task === "companion" ? taskModel : undefined,
     }
 
-    // For LLM-only providers, fall back to env for embeddings
     if (LLM_ONLY_PROVIDERS.has(record.provider)) {
       config.embeddingProvider = process.env.EMBEDDING_PROVIDER || "gemini"
       config.embeddingApiKey = getEnvEmbeddingKey()
@@ -81,7 +110,6 @@ export async function getProviderForUser(userId: string): Promise<AIProvider> {
     return createProvider(config)
   }
 
-  // No user key — check env first, then pool keys
   const envProvider = process.env.AI_PROVIDER ?? "gemini"
   if (hasEnvKey(envProvider)) return defaultProvider
 

@@ -1,21 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { NoAiKeyError, InvalidUserKeyError } from "@/lib/ai/errors"
 
-// Mock Prisma
+// Mock Prisma — getDefaultKey (in lib/ai/keys.ts) uses findFirst.
 vi.mock("@/lib/db/prisma", () => ({
   prisma: {
     userApiKey: {
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+    },
+    userModelConfig: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
+    poolKey: {
+      findMany: vi.fn().mockResolvedValue([]),
+      update: vi.fn(),
     },
   },
 }))
 
-// Mock crypto
 vi.mock("@/lib/ai/crypto", () => ({
   decryptKey: vi.fn(() => "decrypted-api-key"),
 }))
 
-// Mock createProvider
 vi.mock("@/lib/ai/provider", () => ({
   createProvider: vi.fn(() => ({ getLLM: vi.fn(), getLLMStream: vi.fn(), getEmbeddingModel: vi.fn() })),
   validateProviderConfig: vi.fn(),
@@ -24,6 +29,29 @@ vi.mock("@/lib/ai/provider", () => ({
   getEmbeddingModel: vi.fn(),
 }))
 
+function makeKey(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: "1",
+    userId: "u1",
+    name: "Test key",
+    provider: "gemini",
+    encryptedKey: "enc",
+    iv: "iv",
+    authTag: "tag",
+    ollamaBaseUrl: null,
+    isDefault: true,
+    status: "active",
+    quotaExceededAt: null,
+    quotaResetHint: null,
+    lastUsedAt: null,
+    availableModels: null,
+    modelsFetchedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  }
+}
+
 describe("getProviderForUser", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -31,35 +59,27 @@ describe("getProviderForUser", () => {
     process.env.GEMINI_API_KEY = "env-key"
   })
 
-  it("returns user provider when valid record exists", async () => {
+  it("returns user provider when active default key exists", async () => {
     const { prisma } = await import("@/lib/db/prisma")
     const { createProvider } = await import("@/lib/ai/provider")
-    vi.mocked(prisma.userApiKey.findUnique).mockResolvedValue({
-      id: "1", userId: "u1", provider: "gemini",
-      encryptedKey: "enc", iv: "iv", authTag: "tag",
-      ollamaBaseUrl: null, fastModel: null, capableModel: null,
-      verifiedAt: new Date(), createdAt: new Date(), updatedAt: new Date(),
-    })
+    vi.mocked(prisma.userApiKey.findFirst).mockResolvedValue(makeKey())
     const { getProviderForUser } = await import("@/lib/ai/user-provider")
     await getProviderForUser("u1")
-    expect(createProvider).toHaveBeenCalledWith(expect.objectContaining({ provider: "gemini", apiKey: "decrypted-api-key" }))
+    expect(createProvider).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: "gemini", apiKey: "decrypted-api-key" })
+    )
   })
 
-  it("throws InvalidUserKeyError when record has no verifiedAt", async () => {
+  it("throws InvalidUserKeyError when default key is invalid", async () => {
     const { prisma } = await import("@/lib/db/prisma")
-    vi.mocked(prisma.userApiKey.findUnique).mockResolvedValue({
-      id: "1", userId: "u1", provider: "gemini",
-      encryptedKey: "enc", iv: "iv", authTag: "tag",
-      ollamaBaseUrl: null, fastModel: null, capableModel: null,
-      verifiedAt: null, createdAt: new Date(), updatedAt: new Date(),
-    })
+    vi.mocked(prisma.userApiKey.findFirst).mockResolvedValue(makeKey({ status: "invalid" }))
     const { getProviderForUser } = await import("@/lib/ai/user-provider")
     await expect(getProviderForUser("u1")).rejects.toThrow(InvalidUserKeyError)
   })
 
   it("returns defaultProvider when no user record and env key present", async () => {
     const { prisma } = await import("@/lib/db/prisma")
-    vi.mocked(prisma.userApiKey.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.userApiKey.findFirst).mockResolvedValue(null)
     const { getProviderForUser } = await import("@/lib/ai/user-provider")
     const result = await getProviderForUser("u1")
     expect(result).toBeDefined()
@@ -67,7 +87,7 @@ describe("getProviderForUser", () => {
 
   it("throws NoAiKeyError when no user record and no env key", async () => {
     const { prisma } = await import("@/lib/db/prisma")
-    vi.mocked(prisma.userApiKey.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.userApiKey.findFirst).mockResolvedValue(null)
     delete process.env.GEMINI_API_KEY
     const { getProviderForUser } = await import("@/lib/ai/user-provider")
     await expect(getProviderForUser("u1")).rejects.toThrow(NoAiKeyError)

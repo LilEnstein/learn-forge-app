@@ -1,16 +1,14 @@
-import { getUserApiKeyStatus } from "@/app/actions/api-key"
-import { hasEnvKey } from "@/lib/ai/user-provider"
-import { NoAiKeyBanner } from "@/components/settings/NoAiKeyBanner"
+import { getUserApiKeys } from "@/app/actions/api-key"
+import { KeyStatusBar } from "@/components/upload/KeyStatusBar"
 import { UploadPageClient } from "@/components/upload/UploadPageClient"
 
 export default async function UploadPage() {
-  const keyStatus = await getUserApiKeyStatus()
-  const showBanner = !keyStatus && !hasEnvKey(process.env.AI_PROVIDER ?? "gemini")
+  const keys = await getUserApiKeys()
 
   return (
-    <>
-      <NoAiKeyBanner show={showBanner} />
+    <div className="max-w-2xl mx-auto space-y-4">
+      <KeyStatusBar initialKeys={keys} />
       <UploadPageClient />
-    </>
+    </div>
   )
 }

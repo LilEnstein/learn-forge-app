@@ -4,7 +4,13 @@ import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import type { ChatMessage } from "@/lib/ai/provider";
 import { getProviderForUser } from "@/lib/ai/user-provider";
-import { NoAiKeyError, InvalidUserKeyError } from "@/lib/ai/errors";
+import {
+  NoAiKeyError,
+  InvalidUserKeyError,
+  NoActiveKeyError,
+  QuotaExhaustedError,
+} from "@/lib/ai/errors";
+import { getDefaultKey, markQuotaExceeded, touchLastUsed } from "@/lib/ai/keys";
 import type { CompanionContext } from "@/lib/companion/useCompanionContext";
 
 const BodySchema = z.object({
@@ -16,7 +22,6 @@ const BodySchema = z.object({
   ]),
 });
 
-// Module-level cache: key → { strings, expiresAt }
 interface ContextStrings { courseTitle: string; courseTopic?: string; lessonTitle?: string }
 const contextCache = new Map<string, { data: ContextStrings; expiresAt: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -65,6 +70,14 @@ function buildSystemPrompt(userName: string, ctx: CompanionContext, strings: Con
   return `You are an AI learning assistant for ${userName}. Answer in Vietnamese, concisely.`;
 }
 
+function isQuotaError(err: unknown): boolean {
+  const e = err as { status?: number; statusCode?: number; response?: { status?: number }; message?: string };
+  const status = e.status ?? e.statusCode ?? e.response?.status;
+  if (status === 429) return true;
+  const msg = (e.message ?? "").toLowerCase();
+  return msg.includes("quota") || msg.includes("rate limit") || msg.includes("resource_exhausted");
+}
+
 export async function POST(req: NextRequest) {
   const session = await requireSession();
   const userId = session.user.id as string;
@@ -79,8 +92,14 @@ export async function POST(req: NextRequest) {
 
   let provider;
   try {
-    provider = await getProviderForUser(userId);
+    provider = await getProviderForUser(userId, "companion");
   } catch (err) {
+    if (err instanceof NoActiveKeyError) {
+      return NextResponse.json({ error: err.message, resetHint: err.resetHint }, { status: 402 });
+    }
+    if (err instanceof QuotaExhaustedError) {
+      return NextResponse.json({ error: err.message, resetHint: err.resetHint }, { status: 429 });
+    }
     if (err instanceof NoAiKeyError) {
       return NextResponse.json({ error: err.message }, { status: 503 });
     }
@@ -89,6 +108,9 @@ export async function POST(req: NextRequest) {
     }
     throw err;
   }
+
+  // Track which key we're using so we can mark it on errors.
+  const activeKey = await getDefaultKey(userId);
 
   const strings = await resolveContextStrings(context as CompanionContext);
   const systemPrompt = buildSystemPrompt(userName, context as CompanionContext, strings);
@@ -108,8 +130,12 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${token}\n\n`));
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        if (activeKey) touchLastUsed(activeKey.id).catch(() => {});
       } catch (err) {
         console.error("[companion] LLM stream error:", err);
+        if (activeKey && isQuotaError(err)) {
+          await markQuotaExceeded(activeKey.id).catch(() => {});
+        }
         controller.enqueue(encoder.encode("data: [ERROR]\n\n"));
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       } finally {

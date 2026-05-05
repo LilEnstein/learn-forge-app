@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { parseFile } from "./parser";
 import { chunkText } from "./chunker";
-import { getProviderForUser } from "@/lib/ai/user-provider";
+import { withFailover } from "@/lib/ai/with-failover";
 
 /**
  * Run the full RAG ingestion pipeline for one document:
@@ -15,12 +15,8 @@ export async function ingestDocument(documentId: string): Promise<void> {
 
   console.log(`[ingest] start: ${doc.name} (${doc.id})`);
 
-  // Resolve user's AI provider once for this job
-  const provider = await getProviderForUser(doc.userId);
-  const embed = provider.getEmbeddingModel("ingest");
-
   try {
-    // 1. Parse → plain text
+    // 1. Parse → plain text (no AI needed)
     const parsed = await parseFile(doc.storagePath, doc.type);
     console.log(`[ingest] parsed: ${parsed.text.length} chars`);
 
@@ -37,40 +33,43 @@ export async function ingestDocument(documentId: string): Promise<void> {
     }
 
     // 3. Embed + insert (sequential to avoid rate-limiting; batched concurrently per BATCH_SIZE)
-    const BATCH_SIZE = 5;
+    // Wrap the entire embedding pass in withFailover so a 429 mid-document fails over.
+    await withFailover(doc.userId, "embedding", async (provider) => {
+      const embed = provider.getEmbeddingModel("ingest");
+      const BATCH_SIZE = 5;
 
-    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-      const batch = chunks.slice(i, i + BATCH_SIZE);
-      await Promise.all(
-        batch.map(async (chunk) => {
-          const embedding = await embed(chunk.content);
-          const embStr = `[${embedding.join(",")}]`;
+      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        const batch = chunks.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map(async (chunk) => {
+            const embedding = await embed(chunk.content);
+            const embStr = `[${embedding.join(",")}]`;
 
-          // Two-step: create row, then update embedding via raw SQL (Prisma can't bind pgvector directly)
-          const created = await prisma.documentChunk.create({
-            data: {
-              documentId,
-              content: chunk.content,
-              metadata: {
-                index: chunk.index,
-                charStart: chunk.charStart,
-                charEnd: chunk.charEnd,
+            const created = await prisma.documentChunk.create({
+              data: {
+                documentId,
+                content: chunk.content,
+                metadata: {
+                  index: chunk.index,
+                  charStart: chunk.charStart,
+                  charEnd: chunk.charEnd,
+                },
               },
-            },
-            select: { id: true },
-          });
+              select: { id: true },
+            });
 
-          await prisma.$executeRaw`
-            UPDATE "DocumentChunk"
-            SET embedding = ${embStr}::vector
-            WHERE id = ${created.id}
-          `;
-        })
-      );
-      console.log(
-        `[ingest] embedded ${Math.min(i + BATCH_SIZE, chunks.length)}/${chunks.length}`
-      );
-    }
+            await prisma.$executeRaw`
+              UPDATE "DocumentChunk"
+              SET embedding = ${embStr}::vector
+              WHERE id = ${created.id}
+            `;
+          })
+        );
+        console.log(
+          `[ingest] embedded ${Math.min(i + BATCH_SIZE, chunks.length)}/${chunks.length}`
+        );
+      }
+    });
 
     // 4. Mark ready
     await prisma.document.update({

@@ -38,7 +38,8 @@ model User {
   gamification  UserGamification?
   questProgress DailyQuestProgress[]
   leagueEntry   LeagueEntry[]
-  apiKey        UserApiKey?
+  apiKeys       UserApiKey[]
+  modelConfig   UserModelConfig?
 }
 
 model Account {
@@ -67,19 +68,41 @@ model Session {
 }
 
 model UserApiKey {
-  id            String    @id @default(cuid())
-  userId        String    @unique
-  provider      String
-  encryptedKey  String
-  iv            String
-  authTag       String
-  ollamaBaseUrl String?
-  fastModel     String?
-  capableModel  String?
-  verifiedAt    DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String    @id @default(cuid())
+  userId          String
+  name            String    @default("My API Key")
+  provider        String
+  encryptedKey    String
+  iv              String
+  authTag         String
+  ollamaBaseUrl   String?
+  isDefault       Boolean   @default(false)
+  status          String    @default("active") // "active" | "quota_exceeded" | "invalid"
+  quotaExceededAt DateTime?
+  quotaResetHint  DateTime?
+  lastUsedAt      DateTime?
+  availableModels Json?
+  modelsFetchedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isDefault])
+}
+
+model UserModelConfig {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  fileProcessing String?
+  courseGen      String?
+  companion      String?
+  embedding      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {

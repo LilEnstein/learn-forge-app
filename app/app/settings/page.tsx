@@ -1,19 +1,18 @@
-import { getUserApiKeyStatus } from "@/app/actions/api-key"
-import { ApiKeySettings } from "@/components/settings/ApiKeySettings"
-
-type Provider = "gemini" | "openai" | "groq" | "cerebras" | "ollama" | "openai-compat"
+import { getUserApiKeys } from "@/app/actions/api-key"
+import { ApiKeyList } from "@/components/settings/ApiKeyList"
 
 export default async function SettingsPage() {
-  const raw = await getUserApiKeyStatus()
-  const status = raw ? { ...raw, provider: raw.provider as Provider } : null
+  const keys = await getUserApiKeys()
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground text-sm mt-1">Configure your AI provider to use LearnForge.</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          Manage your AI provider keys. Add multiple keys for automatic failover when one hits its quota.
+        </p>
       </div>
-      <ApiKeySettings initial={status} />
+      <ApiKeyList initialKeys={keys} />
     </div>
   )
 }

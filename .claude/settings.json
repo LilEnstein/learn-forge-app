@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cd C:\\\\Turin\\\\LearnForge; $env:DATABASE_URL = \"postgresql://postgres:postgres@localhost:5433/learnforge\"; npx prisma migrate dev --name exercise-gamification-schema 2>&1)",
+      "PowerShell(cd C:\\\\Turin\\\\LearnForge; $env:DATABASE_URL = \"postgresql://postgres:postgres@localhost:5433/learnforge\"; npx prisma migrate dev --name exercise-gamification-schema --create-only 2>&1)",
+      "PowerShell(cd C:\\\\Turin\\\\LearnForge; [System.Environment]::GetEnvironmentVariables\\(\\) | Where-Object { $_.Key -match \"^CI$|^CONTINUOUS_INTEGRATION$|^BUILD_ID$|^TERM$|^NO_COLOR$\" })",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); Write-Host \"URL found: $\\($env:DATABASE_URL -ne ''\\)\"; npx prisma migrate dev --name add_role_tier)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); npx prisma migrate deploy 2>&1; npx prisma generate 2>&1)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); npx prisma generate 2>&1)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); npx ts-node --compiler-options \"{\\\\\"module\\\\\":\\\\\"CommonJS\\\\\"}\" prisma/seed.ts 2>&1)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); npx prisma db seed 2>&1)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); npm run db:seed 2>&1)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); $query = 'SELECT email, role, tier, \"onboardingDone\" FROM \"User\";'; echo $query | npx prisma db execute --stdin 2>&1)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); [System.Text.Encoding]::ASCII.GetBytes\\('SELECT email, role, tier FROM \"User\";'\\) | npx prisma db execute --stdin 2>&1)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); $script = \"import { PrismaClient } from '@prisma/client'; const p = new PrismaClient\\(\\); p.user.findMany\\({ select: { email: true, role: true, tier: true } }\\).then\\(r => console.log\\(JSON.stringify\\(r, null, 2\\)\\)\\).finally\\(\\(\\) => p.`$disconnect\\(\\)\\);\"; [System.IO.File]::WriteAllText\\('C:\\\\tmp\\\\check.mts', $script, [System.Text.UTF8Encoding]::new\\($false\\)\\); npx tsx C:\\\\tmp\\\\check.mts 2>&1)",
+      "Bash(psql \"postgresql://postgres:postgres@localhost:5433/learnforge\" -c 'SELECT u.id, u.email, u.name, a.provider, a.\"providerAccountId\" FROM \"User\" u LEFT JOIN \"Account\" a ON a.\"userId\" = u.id ORDER BY u.\"createdAt\" DESC LIMIT 20;')",
+      "Bash(node -e ' *)",
+      "Read(//c/Users/sang.nguyenanh/.claude/projects/c--Turin-LearnForge/memory/**)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(git -C \"c:\\\\Turin\\\\LearnForge\" diff --stat HEAD)",
+      "Bash(git -C \"c:\\\\Turin\\\\LearnForge\" diff HEAD -- prisma/schema.prisma)",
+      "Bash(git -C \"c:\\\\Turin\\\\LearnForge\" diff HEAD -- learnforge-app-spec.md)",
+      "Bash(git -C \"c:\\\\Turin\\\\LearnForge\" diff HEAD -- docs/features/spec-feature-07-ai-companion.md)",
+      "Bash(git -C \"c:\\\\Turin\\\\LearnForge\" diff HEAD -- lib/auth/config.ts)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); npx prisma migrate dev --name add_pool_key 2>&1)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); $env:PRISMA_MIGRATE_SKIP_GENERATE = \"1\"; npx prisma migrate dev --name add_pool_key --create-only 2>&1)",
+      "Bash(node -e \"const p = require\\('c:/Turin/LearnForge/node_modules/react/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(node -e \"const p = require\\('c:/Turin/LearnForge/node_modules/next/package.json'\\); console.log\\(p.version\\)\")",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); $script = \"import { PrismaClient } from '@prisma/client'; const p = new PrismaClient\\(\\); p.user.findMany\\({ select: { id: true, email: true, name: true, accounts: { select: { provider: true, providerAccountId: true } } } }\\).then\\(r => console.log\\(JSON.stringify\\(r, null, 2\\)\\)\\).finally\\(\\(\\) => p.`$disconnect\\(\\)\\);\"; [System.IO.File]::WriteAllText\\('C:\\\\tmp\\\\check.mts', $script, [System.Text.UTF8Encoding]::new\\($false\\)\\); npx tsx C:\\\\tmp\\\\check.mts 2>&1)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); npx tsx scripts/check-accounts.ts 2>&1)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); npx tsx scripts/check-orphan-data.ts 2>&1)",
+      "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); npx tsx scripts/cleanup-orphan-users.ts 2>&1)",
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match 'node' } | Select-Object Id, ProcessName, StartTime, CommandLine -First 20)",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-ChildItem 'C:\\\\Turin\\\\LearnForge\\\\node_modules\\\\.prisma\\\\client\\\\' | Select-Object Name, Length, LastWriteTime; \\(Get-Item 'C:\\\\Turin\\\\LearnForge\\\\node_modules\\\\.prisma\\\\client\\\\query_engine-windows.dll.node' -ErrorAction SilentlyContinue\\) | Select-Object Length, LastWriteTime)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\sang.nguyenanh\\.claude\\projects\\c--Turin-LearnForge\\memory",
+      "C:\\Turin\\LearnForge\\node_modules\\.prisma\\client"
+    ]
+  }
+}

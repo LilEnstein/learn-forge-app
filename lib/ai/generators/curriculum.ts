@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { getProviderForUser } from "@/lib/ai/user-provider";
+import { withFailover } from "@/lib/ai/with-failover";
 import { retrieveChunks } from "@/lib/ai/rag/retrieve";
 import { buildCurriculumPrompt } from "@/lib/ai/prompts/curriculum.prompt";
 import { CurriculumSchema } from "./schemas";
@@ -22,48 +22,53 @@ export async function generateCurriculum(courseId: string): Promise<void> {
   const existingChapters = await prisma.chapter.count({ where: { courseId } });
   if (existingChapters > 0) return;
 
-  // Resolve user's AI provider once for this job
-  const provider = await getProviderForUser(course.user.id);
-  const llm = provider.getLLM("ingest");
-  const embedFn = provider.getEmbeddingModel();
+  const userId = course.user.id;
 
-  const chunks = await retrieveChunks(course.title, course.user.id, { courseId, topK: 30 }, embedFn);
+  // Retrieve context chunks (embedding call) under failover
+  const chunks = await withFailover(userId, "embedding", async (provider) => {
+    const embedFn = provider.getEmbeddingModel();
+    return retrieveChunks(course.title, userId, { courseId, topK: 30 }, embedFn);
+  });
+
   const { system, user } = buildCurriculumPrompt({
     chunks: chunks.map((c) => c.content),
     courseTitle: course.title,
     topic: course.topic,
   });
-  let raw: string;
+
+  // Curriculum LLM call under failover; retry-with-correction inside same provider on parse failure.
+  let parsed: unknown;
   try {
-    raw = await llm([
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ]);
+    parsed = await withFailover(userId, "courseGen", async (provider) => {
+      const llm = provider.getLLM("ingest");
+      const raw = await llm([
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ]);
+      try {
+        return JSON.parse(extractJson(raw));
+      } catch {
+        const raw2 = await llm([
+          { role: "system", content: system },
+          { role: "user", content: user },
+          { role: "assistant", content: raw },
+          { role: "user", content: "The JSON was invalid. Please respond with only valid JSON, no other text." },
+        ]);
+        return JSON.parse(extractJson(raw2));
+      }
+    });
   } catch (err) {
     await prisma.course.update({ where: { id: courseId }, data: { status: "error" } });
     throw err;
   }
 
-  let parsed: unknown;
+  let curriculum: ReturnType<typeof CurriculumSchema.parse>;
   try {
-    parsed = JSON.parse(extractJson(raw));
+    curriculum = CurriculumSchema.parse(parsed);
   } catch {
-    // Retry once
-    try {
-      const raw2 = await llm([
-        { role: "system", content: system },
-        { role: "user", content: user },
-        { role: "assistant", content: raw },
-        { role: "user", content: "The JSON was invalid. Please respond with only valid JSON, no other text." },
-      ]);
-      parsed = JSON.parse(extractJson(raw2));
-    } catch {
-      await prisma.course.update({ where: { id: courseId }, data: { status: "error" } });
-      throw new Error(`Failed to parse curriculum JSON for course ${courseId}`);
-    }
+    await prisma.course.update({ where: { id: courseId }, data: { status: "error" } });
+    throw new Error(`Failed to parse curriculum JSON for course ${courseId}`);
   }
-
-  const curriculum = CurriculumSchema.parse(parsed);
 
   await prisma.$transaction(async (tx) => {
     await tx.course.update({
@@ -104,7 +109,6 @@ export async function generateCurriculum(courseId: string): Promise<void> {
 
     return lessonIds;
   }).then(async () => {
-    // Enqueue exercise generation for all lessons
     const lessons = await prisma.lesson.findMany({
       where: { chapter: { courseId } },
       select: { id: true },
@@ -114,7 +118,6 @@ export async function generateCurriculum(courseId: string): Promise<void> {
     const { generateExercises } = await import("@/lib/ai/generators/exercises");
     for (const lesson of lessons) {
       await sendJob("generate-exercises", { lessonId: lesson.id });
-      // Fire directly in background — pg-boss workers may not be running in dev
       generateExercises(lesson.id).catch((e) =>
         console.error("[curriculum] generateExercises failed:", lesson.id, e)
       );

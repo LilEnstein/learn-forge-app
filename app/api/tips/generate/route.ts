@@ -3,8 +3,13 @@ import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { retrieveChunks } from "@/lib/ai/rag/retrieve";
-import { getProviderForUser } from "@/lib/ai/user-provider";
-import { NoAiKeyError, InvalidUserKeyError } from "@/lib/ai/errors";
+import { withFailover } from "@/lib/ai/with-failover";
+import {
+  NoAiKeyError,
+  InvalidUserKeyError,
+  NoActiveKeyError,
+  QuotaExhaustedError,
+} from "@/lib/ai/errors";
 import { MASCOT_CONFIG, AvatarKey } from "@/lib/mascots/config";
 
 const QuerySchema = z.object({ courseId: z.string().min(1) });
@@ -30,19 +35,6 @@ export async function GET(req: NextRequest) {
   }
   const { courseId } = params.data;
 
-  let provider;
-  try {
-    provider = await getProviderForUser(userId);
-  } catch (err) {
-    if (err instanceof NoAiKeyError) {
-      return NextResponse.json({ error: err.message }, { status: 503 });
-    }
-    if (err instanceof InvalidUserKeyError) {
-      return NextResponse.json({ error: err.message }, { status: 400 });
-    }
-    throw err;
-  }
-
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { avatarKey: true },
@@ -52,28 +44,43 @@ export async function GET(req: NextRequest) {
   const personality = MASCOT_CONFIG[avatarKey]?.personality ?? "warm";
   const instruction = personalityInstruction[personality] ?? personalityInstruction.warm;
 
-  const embedFn = provider.getEmbeddingModel();
-  const chunks = await retrieveChunks("interesting fact", userId, { courseId, topK: 3 }, embedFn);
-  if (chunks.length === 0) {
-    return NextResponse.json({ tip: null });
+  try {
+    const chunks = await withFailover(userId, "embedding", async (provider) => {
+      const embedFn = provider.getEmbeddingModel();
+      return retrieveChunks("interesting fact", userId, { courseId, topK: 3 }, embedFn);
+    });
+    if (chunks.length === 0) return NextResponse.json({ tip: null });
+
+    const context = chunks.map((c) => c.content).join("\n\n");
+
+    const tip = await withFailover(userId, "companion", async (provider) => {
+      const llm = provider.getLLM();
+      return llm([
+        { role: "system", content: `You are a helpful learning assistant. ${instruction}` },
+        {
+          role: "user",
+          content: `Based on the following course content, share one interesting fact or insight:\n\n${context}`,
+        },
+      ]);
+    });
+
+    return NextResponse.json(
+      { tip: tip.trim() },
+      { headers: { "Cache-Control": "private, max-age=3600" } }
+    );
+  } catch (err) {
+    if (err instanceof NoActiveKeyError) {
+      return NextResponse.json({ error: err.message, resetHint: err.resetHint }, { status: 402 });
+    }
+    if (err instanceof QuotaExhaustedError) {
+      return NextResponse.json({ error: err.message, resetHint: err.resetHint }, { status: 429 });
+    }
+    if (err instanceof NoAiKeyError) {
+      return NextResponse.json({ error: err.message }, { status: 503 });
+    }
+    if (err instanceof InvalidUserKeyError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    throw err;
   }
-
-  const context = chunks.map((c) => c.content).join("\n\n");
-
-  const llm = provider.getLLM();
-  const tip = await llm([
-    {
-      role: "system",
-      content: `You are a helpful learning assistant. ${instruction}`,
-    },
-    {
-      role: "user",
-      content: `Based on the following course content, share one interesting fact or insight:\n\n${context}`,
-    },
-  ]);
-
-  return NextResponse.json(
-    { tip: tip.trim() },
-    { headers: { "Cache-Control": "private, max-age=3600" } }
-  );
 }

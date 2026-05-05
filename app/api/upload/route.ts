@@ -46,13 +46,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: errors.join("; ") }, { status: 400 });
   }
 
-  // Free tier check
-  const docCount = await prisma.document.count({ where: { userId } });
-  if (docCount + files.length > FREE_LIMIT) {
-    return NextResponse.json(
-      { error: `Free tier allows up to ${FREE_LIMIT} documents` },
-      { status: 403 }
-    );
+  // Free-tier doc cap — only enforced when the user is consuming the server's
+  // env API key. Users who have configured their own UserApiKey are on BYOK
+  // (they pay for inference themselves), so we don't cap their corpus.
+  const ownKeyCount = await prisma.userApiKey.count({ where: { userId } });
+  if (ownKeyCount === 0) {
+    const docCount = await prisma.document.count({ where: { userId } });
+    if (docCount + files.length > FREE_LIMIT) {
+      return NextResponse.json(
+        {
+          error: `Free tier allows up to ${FREE_LIMIT} documents. Add your own API key in Settings to remove this limit.`,
+        },
+        { status: 403 }
+      );
+    }
   }
 
   // Resolve course — create new if no courseId provided
