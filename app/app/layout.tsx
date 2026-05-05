@@ -2,10 +2,10 @@ import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import Link from "next/link";
 import { BookOpen, Upload, MessageCircle, Trophy, User, Flame, Settings } from "lucide-react";
-import { Mascot } from "@/components/mascots/Mascot";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { NavigationOverlay } from "@/components/loading/NavigationOverlay";
 import { CompanionBubble } from "@/components/companion/CompanionBubble";
+import { UserMenu } from "@/components/layout/UserMenu";
 import type { AvatarKey } from "@/lib/mascots/config";
 
 const navItems = [
@@ -52,13 +52,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="flex justify-end">
             <ThemeToggle />
           </div>
-          <div className="flex items-center gap-3 rounded-lg border px-3 py-2">
-            <Mascot avatarKey={avatarKey} size={32} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{session.user.name ?? "Learner"}</p>
-              <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
-            </div>
-          </div>
+          <UserMenu
+            name={session.user.name ?? null}
+            email={session.user.email}
+            avatarKey={avatarKey as AvatarKey}
+            role={session.user.role}
+          />
         </div>
       </aside>
 

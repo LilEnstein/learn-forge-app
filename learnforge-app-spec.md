@@ -418,13 +418,36 @@ GOOGLE_CLIENT_ID=""
 GOOGLE_CLIENT_SECRET=""
 
 # ── AI Provider ───────────────────────────────────
-# Chọn một trong hai:
-AI_PROVIDER="openai"         # "openai" | "ollama"
+AI_PROVIDER="gemini"         # "gemini" | "openai" | "ollama" | "groq" | "cerebras" | "openai-compat"
+
+# Embedding provider — defaults to AI_PROVIDER when capable.
+# Required when AI_PROVIDER=groq or cerebras (they have no embedding support).
+# EMBEDDING_PROVIDER="gemini"
+
+# Google AI Studio (Gemini) — recommended default
+# Two-key split to separate quota between workloads:
+#   GEMINI_API_KEY       → companion chat, RAG retrieval embeddings (high-frequency, low-token)
+#   GEMINI_API_KEY_INGEST → PDF parse, curriculum/exercise generation, ingestion embeddings (bursty, high-token)
+# If GEMINI_API_KEY_INGEST is absent, all workloads fall back to GEMINI_API_KEY.
+GEMINI_API_KEY=""
+GEMINI_API_KEY_INGEST=""           # optional; leave blank to share quota with primary key
+GEMINI_MODEL="gemini-2.5-flash"
+GEMINI_MODEL_LITE="gemini-2.0-flash-lite"   # companion chat and lightweight generation
+GEMINI_MODEL_FALLBACKS="gemini-flash-latest,gemini-2.0-flash"
+GEMINI_EMBEDDING_MODEL="gemini-embedding-001"
 
 # OpenAI
 OPENAI_API_KEY=""
 OPENAI_MODEL="gpt-4o"
 OPENAI_EMBEDDING_MODEL="text-embedding-3-small"
+
+# Groq (free cloud LLM — pair with EMBEDDING_PROVIDER=gemini or ollama)
+GROQ_API_KEY=""
+GROQ_MODEL="llama-3.3-70b-versatile"
+
+# Cerebras (free cloud LLM — pair with EMBEDDING_PROVIDER=gemini or ollama)
+CEREBRAS_API_KEY=""
+CEREBRAS_MODEL="llama3.1-8b"
 
 # Ollama (local, không cần API key)
 OLLAMA_BASE_URL="http://localhost:11434"

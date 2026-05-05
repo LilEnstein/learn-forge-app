@@ -27,7 +27,7 @@ function maskKey(key: string): string {
 
 // Cheapest model per provider for verification only
 const VERIFY_MODELS: Record<string, string> = {
-  gemini: "gemini-2.0-flash-lite",
+  gemini: "gemini-2.5-flash",
   openai: "gpt-4o-mini",
   groq: "llama-3.1-8b-instant",
   cerebras: "llama3.1-8b",
@@ -68,12 +68,21 @@ async function verifyKey(input: SaveKeyInput): Promise<void> {
     await Promise.race([llm([{ role: "user", content: "Hi" }]), timeoutPromise])
   } catch (err: any) {
     if (err.isTimeout) throw err
-    const status = err.status ?? err.statusCode ?? 0
-    if (status === 401 || status === 403) {
+    // Gemini returns 400 for invalid API key; OpenAI returns 401; some SDKs put status on response
+    const status = err.status ?? err.statusCode ?? err.response?.status ?? 0
+    if (status === 400 || status === 401 || status === 403) {
       throw Object.assign(new Error("invalid_key"), { isInvalidKey: true })
+    }
+    if (status === 404) {
+      throw Object.assign(new Error("model_not_found"), { isModelNotFound: true })
     }
     if (status === 429) {
       throw Object.assign(new Error("rate_limited"), { isRateLimited: true })
+    }
+    // Last resort: check error message for key-related keywords
+    const msg = (err.message ?? "").toLowerCase()
+    if (msg.includes("api key") || msg.includes("invalid key") || msg.includes("unauthorized")) {
+      throw Object.assign(new Error("invalid_key"), { isInvalidKey: true })
     }
     throw err
   }
@@ -83,7 +92,9 @@ function verifyErrorMessage(err: any): string {
   if (err.isTimeout) return "Không thể kết nối đến provider. Kiểm tra mạng và thử lại."
   if (err.isInvalidKey) return "API key không hợp lệ. Kiểm tra lại trong provider dashboard."
   if (err.isRateLimited) return "Key hợp lệ nhưng đang bị rate limit. Thử lại sau ít phút."
-  return "Lỗi không xác định khi xác minh key."
+  if (err.isModelNotFound) return "Model xác minh không còn khả dụng. Thử chọn model khác trong Advanced."
+  console.error("[api-key verify] unexpected error:", err)
+  return `Lỗi xác minh key: ${err?.message ?? "unknown"}`
 }
 
 export async function saveUserApiKey(

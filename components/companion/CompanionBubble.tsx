@@ -6,7 +6,11 @@ import { MessageCircle, X } from "lucide-react";
 import { CompanionChat } from "./CompanionChat";
 import { useCompanionContext } from "@/lib/companion/useCompanionContext";
 
-export function CompanionBubble() {
+interface Props {
+  userId?: string;
+}
+
+export function CompanionBubble({ userId }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const context = useCompanionContext();
 
@@ -29,7 +33,7 @@ export function CompanionBubble() {
                 <X className="h-4 w-4 opacity-80 hover:opacity-100" />
               </button>
             </div>
-            <CompanionChat context={context} />
+            <CompanionChat context={context} userId={userId} />
           </motion.div>
         )}
       </AnimatePresence>

@@ -10,7 +10,7 @@ interface Props {
 export function ContextualProgress({ context, progress }: Props) {
   if (context === 'transition') {
     return (
-      <div className="fixed bottom-8 right-8 flex gap-1.5">
+      <div className="flex gap-1.5">
         {[0, 1, 2].map((i) => (
           <span
             key={i}

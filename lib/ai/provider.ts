@@ -93,7 +93,7 @@ export function createProvider(config: ProviderConfig): AIProvider {
   function getGeminiModelChain(): string[] {
     if (config.capableModel) return [config.capableModel]
     const primary = process.env.GEMINI_MODEL ?? "gemini-2.5-flash"
-    const fallbacks = (process.env.GEMINI_MODEL_FALLBACKS ?? "gemini-flash-latest,gemini-2.0-flash")
+    const fallbacks = (process.env.GEMINI_MODEL_FALLBACKS ?? "gemini-flash-latest")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean)

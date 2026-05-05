@@ -21,7 +21,7 @@ const PROVIDERS: { value: Provider; label: string }[] = [
 ]
 
 const PLACEHOLDER_MODELS: Record<Provider, { fast: string; capable: string }> = {
-  gemini: { fast: "gemini-2.0-flash-lite", capable: "gemini-2.5-flash" },
+  gemini: { fast: "gemini-2.5-flash", capable: "gemini-2.5-pro" },
   openai: { fast: "gpt-4o-mini", capable: "gpt-4o" },
   groq: { fast: "llama-3.1-8b-instant", capable: "llama-3.3-70b-versatile" },
   cerebras: { fast: "llama3.1-8b", capable: "llama3.3-70b" },

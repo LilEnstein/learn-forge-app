@@ -41,7 +41,7 @@ export async function parseFile(filePath: string, _mimeType: string): Promise<Pa
 async function parsePdf(filePath: string): Promise<ParsedDocument> {
   // Use Gemini Files API — zero memory overhead, handles complex/scanned PDFs.
   // pdf-parse / pdfjs-dist OOMs on PDFs with complex font tables.
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY_INGEST ?? process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("PDF parsing requires GEMINI_API_KEY (set AI_PROVIDER=gemini in .env.local)");
   }

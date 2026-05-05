@@ -79,15 +79,21 @@ export function LoadingScreen({ avatarKey, context, topic, courseId, userId, pro
         <MascotAnimation avatarKey={avatarKey} />
       </div>
 
+      {context === 'transition' && (
+        <ContextualProgress context={context} />
+      )}
+
       <TipDisplay tip={tip} />
 
       {message && (
         <p className="text-white/60 text-xs tracking-wide">{message}</p>
       )}
 
-      <div className="absolute bottom-12">
-        <ContextualProgress context={context} progress={progress} />
-      </div>
+      {context !== 'transition' && (
+        <div className="absolute bottom-12">
+          <ContextualProgress context={context} progress={progress} />
+        </div>
+      )}
     </div>
   )
 }
