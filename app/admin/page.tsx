@@ -7,7 +7,7 @@ const cards = [
     icon: KeyRound,
     title: "Key Pool",
     description: "Manage shared provider API keys, daily limits, and routing priorities.",
-    phase: "Phase 3",
+    phase: "Live",
   },
   {
     href: "/admin/users",

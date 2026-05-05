@@ -28,6 +28,34 @@ function getEnvEmbeddingKey(): string | undefined {
   return map[ep]
 }
 
+async function tryPoolKey(provider: string): Promise<AIProvider | null> {
+  const keys = await prisma.poolKey.findMany({
+    where: { provider, isActive: true },
+    orderBy: { priority: "asc" },
+  })
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  for (const key of keys) {
+    // Reset counter if it's a new day
+    if (key.lastResetAt.toISOString().slice(0, 10) < today) {
+      await prisma.poolKey.update({
+        where: { id: key.id },
+        data: { dailyUsed: 0, lastResetAt: new Date() },
+      })
+      key.dailyUsed = 0
+    }
+
+    if (key.dailyUsed < key.dailyLimit) {
+      await prisma.poolKey.update({ where: { id: key.id }, data: { dailyUsed: { increment: 1 } } })
+      const apiKey = decryptKey(key.encryptedKey, key.iv, key.authTag)
+      return createProvider({ provider, apiKey })
+    }
+  }
+
+  return null
+}
+
 export async function getProviderForUser(userId: string): Promise<AIProvider> {
   const record = await prisma.userApiKey.findUnique({ where: { userId } })
 
@@ -53,9 +81,12 @@ export async function getProviderForUser(userId: string): Promise<AIProvider> {
     return createProvider(config)
   }
 
-  // No user key — check env
+  // No user key — check env first, then pool keys
   const envProvider = process.env.AI_PROVIDER ?? "gemini"
-  if (!hasEnvKey(envProvider)) throw new NoAiKeyError()
+  if (hasEnvKey(envProvider)) return defaultProvider
 
-  return defaultProvider
+  const poolProvider = await tryPoolKey(envProvider)
+  if (poolProvider) return poolProvider
+
+  throw new NoAiKeyError()
 }

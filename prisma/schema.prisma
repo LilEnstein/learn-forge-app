@@ -261,3 +261,21 @@ model Transaction {
   reason    String
   createdAt DateTime @default(now())
 }
+
+// ─── ADMIN KEY POOL ──────────────────────────────────────
+
+model PoolKey {
+  id           String   @id @default(cuid())
+  provider     String   // "openai" | "gemini" | "groq" | "cerebras"
+  label        String?
+  encryptedKey String
+  iv           String
+  authTag      String
+  dailyLimit   Int      @default(1000)
+  dailyUsed    Int      @default(0)
+  lastResetAt  DateTime @default(now())
+  isActive     Boolean  @default(true)
+  priority     Int      @default(0) // lower = tried first
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
