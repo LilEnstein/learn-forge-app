@@ -32,7 +32,8 @@
       "PowerShell(cd \"c:\\\\Turin\\\\LearnForge\"; $env:DATABASE_URL = \\(Get-Content .env.local | Select-String \"^DATABASE_URL=\" | ForEach-Object { $_ -replace \"^DATABASE_URL=\", \"\" } | ForEach-Object { $_.Trim\\('\"'\\) }\\); npx tsx scripts/cleanup-orphan-users.ts 2>&1)",
       "PowerShell(Get-Process | Where-Object { $_.ProcessName -match 'node' } | Select-Object Id, ProcessName, StartTime, CommandLine -First 20)",
       "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
-      "PowerShell(Get-ChildItem 'C:\\\\Turin\\\\LearnForge\\\\node_modules\\\\.prisma\\\\client\\\\' | Select-Object Name, Length, LastWriteTime; \\(Get-Item 'C:\\\\Turin\\\\LearnForge\\\\node_modules\\\\.prisma\\\\client\\\\query_engine-windows.dll.node' -ErrorAction SilentlyContinue\\) | Select-Object Length, LastWriteTime)"
+      "PowerShell(Get-ChildItem 'C:\\\\Turin\\\\LearnForge\\\\node_modules\\\\.prisma\\\\client\\\\' | Select-Object Name, Length, LastWriteTime; \\(Get-Item 'C:\\\\Turin\\\\LearnForge\\\\node_modules\\\\.prisma\\\\client\\\\query_engine-windows.dll.node' -ErrorAction SilentlyContinue\\) | Select-Object Length, LastWriteTime)",
+      "Bash(vercel --prod)"
     ],
     "additionalDirectories": [
       "c:\\Users\\sang.nguyenanh\\.claude\\projects\\c--Turin-LearnForge\\memory",
