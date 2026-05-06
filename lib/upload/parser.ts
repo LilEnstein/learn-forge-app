@@ -1,4 +1,3 @@
-import fs from "fs/promises";
 import path from "path";
 import { GoogleAIFileManager, FileState } from "@google/generative-ai/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -22,23 +21,23 @@ export type ParsedDocument = {
   };
 };
 
-export async function parseFile(filePath: string, _mimeType: string): Promise<ParsedDocument> {
-  const ext = path.extname(filePath).toLowerCase();
+export async function parseBuffer(buffer: Buffer, fileName: string): Promise<ParsedDocument> {
+  const ext = path.extname(fileName).toLowerCase();
 
   switch (ext) {
     case ".pdf":
-      return parsePdf(filePath);
+      return parsePdf(buffer, fileName);
     case ".docx":
-      return parseDocx(filePath);
+      return parseDocx(buffer);
     case ".txt":
     case ".md":
-      return parsePlainText(filePath);
+      return { text: buffer.toString("utf-8"), metadata: {} };
     default:
       throw new Error(`Unsupported file type: ${ext}`);
   }
 }
 
-async function parsePdf(filePath: string): Promise<ParsedDocument> {
+async function parsePdf(buffer: Buffer, fileName: string): Promise<ParsedDocument> {
   // Use Gemini Files API — zero memory overhead, handles complex/scanned PDFs.
   // pdf-parse / pdfjs-dist OOMs on PDFs with complex font tables.
   const apiKey = process.env.GEMINI_API_KEY_INGEST ?? process.env.GEMINI_API_KEY;
@@ -46,17 +45,15 @@ async function parsePdf(filePath: string): Promise<ParsedDocument> {
     throw new Error("PDF parsing requires GEMINI_API_KEY (set AI_PROVIDER=gemini in .env.local)");
   }
 
-  const buffer = await fs.readFile(filePath);
   const fileManager = new GoogleAIFileManager(apiKey);
   const genAI = new GoogleGenerativeAI(apiKey);
 
   const uploaded = await fileManager.uploadFile(buffer, {
     mimeType: "application/pdf",
-    displayName: path.basename(filePath),
+    displayName: fileName,
   });
 
   try {
-    // Files API processes async — poll until ACTIVE
     let file = uploaded.file;
     while (file.state === FileState.PROCESSING) {
       await new Promise((r) => setTimeout(r, 2000));
@@ -87,13 +84,8 @@ async function parsePdf(filePath: string): Promise<ParsedDocument> {
   }
 }
 
-async function parseDocx(filePath: string): Promise<ParsedDocument> {
+async function parseDocx(buffer: Buffer): Promise<ParsedDocument> {
   const mammoth = await import("mammoth");
-  const result = await mammoth.extractRawText({ path: filePath });
+  const result = await mammoth.extractRawText({ buffer });
   return { text: result.value, metadata: {} };
-}
-
-async function parsePlainText(filePath: string): Promise<ParsedDocument> {
-  const text = await fs.readFile(filePath, "utf-8");
-  return { text, metadata: {} };
 }

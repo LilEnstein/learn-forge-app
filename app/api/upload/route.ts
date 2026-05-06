@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
+import { put } from "@vercel/blob";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
+import { inngest } from "@/lib/inngest/client";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR ?? "./uploads";
 const MAX_SIZE_MB = parseInt(process.env.MAX_UPLOAD_SIZE_MB ?? "50");
 const FREE_LIMIT = parseInt(process.env.MAX_DOCUMENTS_FREE ?? "3");
 const ALLOWED_EXTS = [".pdf", ".docx", ".txt", ".md"];
@@ -31,7 +31,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No files provided" }, { status: 400 });
   }
 
-  // Validate file types and sizes
   const errors: string[] = [];
   for (const file of files) {
     const ext = path.extname(file.name).toLowerCase();
@@ -47,8 +46,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Free-tier doc cap — only enforced when the user is consuming the server's
-  // env API key. Users who have configured their own UserApiKey are on BYOK
-  // (they pay for inference themselves), so we don't cap their corpus.
+  // env API key. Users who have configured their own UserApiKey are on BYOK.
   const ownKeyCount = await prisma.userApiKey.count({ where: { userId } });
   if (ownKeyCount === 0) {
     const docCount = await prisma.document.count({ where: { userId } });
@@ -62,7 +60,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Resolve course — create new if no courseId provided
   let resolvedCourseId = courseId;
   if (!resolvedCourseId) {
     const course = await prisma.course.create({
@@ -79,18 +76,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Save files to disk + create Document rows
-  await mkdir(UPLOAD_DIR, { recursive: true });
-
   const createdDocs = await Promise.all(
     files.map(async (file) => {
       const ext = path.extname(file.name).toLowerCase();
       const fileId = crypto.randomUUID();
-      const fileName = `${fileId}${ext}`;
-      const filePath = path.join(UPLOAD_DIR, fileName);
+      const blobKey = `documents/${userId}/${fileId}${ext}`;
 
-      const buffer = Buffer.from(await file.arrayBuffer());
-      await writeFile(filePath, buffer);
+      const blob = await put(blobKey, file, {
+        access: "public",
+        addRandomSuffix: false,
+      });
 
       const docType = ext === ".pdf" ? "pdf" : ext === ".docx" ? "docx" : "text";
 
@@ -100,7 +95,7 @@ export async function POST(req: NextRequest) {
           courseId: resolvedCourseId,
           name: file.name,
           type: docType,
-          storagePath: filePath,
+          storagePath: blob.url,
           sizeBytes: file.size,
           status: "processing",
         },
@@ -108,17 +103,16 @@ export async function POST(req: NextRequest) {
     })
   );
 
-  // Fire-and-forget ingestion in the same Node.js process (dev-friendly).
-  // pg-boss is unreliable in Next.js dev — direct invocation works every time.
-  for (const doc of createdDocs) {
-    import("@/lib/upload/ingest")
-      .then(({ ingestDocument }) =>
-        ingestDocument(doc.id).catch((e) =>
-          console.error(`[upload] ingest failed for ${doc.id}:`, e)
-        )
-      )
-      .catch((e) => console.error("[upload] failed to load ingest module:", e));
-  }
+  // Hand off to Inngest — the worker downloads from Blob, parses, embeds, and
+  // (when all course docs are ready) enqueues curriculum generation.
+  await Promise.all(
+    createdDocs.map((doc) =>
+      inngest.send({
+        name: "app/document.uploaded",
+        data: { documentId: doc.id },
+      })
+    )
+  );
 
   return NextResponse.json({
     success: true,

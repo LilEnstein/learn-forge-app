@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { sendJob } from "@/lib/queue/boss";
+import { inngest } from "@/lib/inngest/client";
 
 const CreateCourseSchema = z.object({
   title: z.string().min(1).max(200),
@@ -68,7 +68,10 @@ export async function POST(req: NextRequest) {
     data: { courseId: course.id },
   });
 
-  await sendJob("generate-curriculum", { courseId: course.id });
+  await inngest.send({
+    name: "app/course.curriculum-requested",
+    data: { courseId: course.id },
+  });
 
   return NextResponse.json({ courseId: course.id }, { status: 201 });
 }

@@ -1,30 +1,29 @@
 import { prisma } from "@/lib/db/prisma";
-import { parseFile } from "./parser";
+import { parseBuffer } from "./parser";
 import { chunkText } from "./chunker";
 import { withFailover } from "@/lib/ai/with-failover";
+import { inngest } from "@/lib/inngest/client";
 
 /**
  * Run the full RAG ingestion pipeline for one document:
- * parse → chunk → embed → write to pgvector → trigger curriculum if course is ready.
+ * fetch from blob → parse → chunk → embed → write to pgvector → enqueue curriculum if course is ready.
  */
 export async function ingestDocument(documentId: string): Promise<void> {
   const doc = await prisma.document.findUniqueOrThrow({ where: { id: documentId } });
 
-  // Idempotency — skip if already done
   if (doc.status === "ready") return;
 
   console.log(`[ingest] start: ${doc.name} (${doc.id})`);
 
   try {
-    // 1. Parse → plain text (no AI needed)
-    const parsed = await parseFile(doc.storagePath, doc.type);
+    const buffer = await fetchStorage(doc.storagePath);
+    const parsed = await parseBuffer(buffer, doc.name);
     console.log(`[ingest] parsed: ${parsed.text.length} chars`);
 
     if (!parsed.text || parsed.text.trim().length < 100) {
       throw new Error("Document is too short or unreadable");
     }
 
-    // 2. Chunk
     const chunks = chunkText(parsed.text);
     console.log(`[ingest] chunked: ${chunks.length} chunks`);
 
@@ -32,8 +31,6 @@ export async function ingestDocument(documentId: string): Promise<void> {
       throw new Error("No chunks produced");
     }
 
-    // 3. Embed + insert (sequential to avoid rate-limiting; batched concurrently per BATCH_SIZE)
-    // Wrap the entire embedding pass in withFailover so a 429 mid-document fails over.
     await withFailover(doc.userId, "embedding", async (provider) => {
       const embed = provider.getEmbeddingModel("ingest");
       const BATCH_SIZE = 5;
@@ -71,14 +68,12 @@ export async function ingestDocument(documentId: string): Promise<void> {
       }
     });
 
-    // 4. Mark ready
     await prisma.document.update({
       where: { id: documentId },
       data: { status: "ready" },
     });
     console.log(`[ingest] done: ${doc.name}`);
 
-    // 5. If part of a course and all docs ready → kick off curriculum generation
     if (doc.courseId) {
       await checkAndTriggerCurriculum(doc.courseId);
     }
@@ -90,6 +85,21 @@ export async function ingestDocument(documentId: string): Promise<void> {
     });
     throw err;
   }
+}
+
+/**
+ * Fetch a document from storage. Supports Vercel Blob URLs (production)
+ * and local filesystem paths (legacy/dev fallback for documents uploaded
+ * before the Blob migration).
+ */
+async function fetchStorage(storagePath: string): Promise<Buffer> {
+  if (/^https?:\/\//.test(storagePath)) {
+    const res = await fetch(storagePath);
+    if (!res.ok) throw new Error(`Failed to fetch blob (${res.status}): ${storagePath}`);
+    return Buffer.from(await res.arrayBuffer());
+  }
+  const fs = await import("fs/promises");
+  return fs.readFile(storagePath);
 }
 
 async function checkAndTriggerCurriculum(courseId: string): Promise<void> {
@@ -108,12 +118,8 @@ async function checkAndTriggerCurriculum(courseId: string): Promise<void> {
     data: { status: "generating" },
   });
 
-  // Fire-and-forget — don't block the worker
-  import("@/lib/ai/generators/curriculum")
-    .then(({ generateCurriculum }) =>
-      generateCurriculum(courseId).catch((e) =>
-        console.error("[ingest] curriculum generation failed:", e)
-      )
-    )
-    .catch((e) => console.error("[ingest] failed to load curriculum module:", e));
+  await inngest.send({
+    name: "app/course.curriculum-requested",
+    data: { courseId },
+  });
 }

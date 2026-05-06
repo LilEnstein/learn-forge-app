@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { withFailover } from "@/lib/ai/with-failover";
 import { retrieveChunks } from "@/lib/ai/rag/retrieve";
 import { buildCurriculumPrompt } from "@/lib/ai/prompts/curriculum.prompt";
+import { inngest } from "@/lib/inngest/client";
 import { CurriculumSchema } from "./schemas";
 
 function extractJson(raw: string): string {
@@ -114,13 +115,13 @@ export async function generateCurriculum(courseId: string): Promise<void> {
       select: { id: true },
     });
 
-    const { sendJob } = await import("@/lib/queue/boss");
-    const { generateExercises } = await import("@/lib/ai/generators/exercises");
-    for (const lesson of lessons) {
-      await sendJob("generate-exercises", { lessonId: lesson.id });
-      generateExercises(lesson.id).catch((e) =>
-        console.error("[curriculum] generateExercises failed:", lesson.id, e)
-      );
-    }
+    if (lessons.length === 0) return;
+
+    await inngest.send(
+      lessons.map((lesson) => ({
+        name: "app/lesson.exercises-requested" as const,
+        data: { lessonId: lesson.id },
+      }))
+    );
   });
 }
