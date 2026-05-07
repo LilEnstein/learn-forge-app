@@ -120,3 +120,14 @@ html.is-theme-transitioning *::after {
   transition: background-color 300ms ease, color 300ms ease,
               border-color 300ms ease, fill 300ms ease !important;
 }
+
+/* Post-lesson navigation: highlight pulse for newly unlocked map node */
+.highlight-pulse {
+  animation: node-highlight 2s ease-out forwards;
+}
+
+@keyframes node-highlight {
+  0%   { box-shadow: 0 0 0 0   rgba(124, 58, 237, 0.8); }
+  50%  { box-shadow: 0 0 0 16px rgba(124, 58, 237, 0.4); }
+  100% { box-shadow: 0 0 0 0   rgba(124, 58, 237, 0); }
+}
