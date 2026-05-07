@@ -18,6 +18,7 @@ export default async function LessonPage({ params }: Props) {
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
     include: {
+      chapter: { select: { title: true } },
       exercises: {
         orderBy: { order: "asc" },
         select: {
@@ -49,6 +50,8 @@ export default async function LessonPage({ params }: Props) {
       <ExerciseScreen
         lessonId={lessonId}
         courseId={courseId}
+        chapterId={lesson.chapterId}
+        chapterTitle={lesson.chapter.title}
         exercises={lesson.exercises}
       />
     </div>

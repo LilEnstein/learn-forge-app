@@ -16,10 +16,12 @@ import { CodeFillBlank } from "./types/CodeFillBlank";
 interface Props {
   lessonId: string;
   courseId: string;
+  chapterId: string;
+  chapterTitle: string;
   exercises: ExerciseItem[];
 }
 
-export function ExerciseScreen({ lessonId, courseId, exercises }: Props) {
+export function ExerciseScreen({ lessonId, courseId, chapterId, chapterTitle, exercises }: Props) {
   const { data: gamification } = useGamification();
   const {
     currentExercise,
