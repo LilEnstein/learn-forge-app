@@ -80,6 +80,7 @@ export function MapNode({ lesson, side, onClick }: Props) {
 
   return (
     <div
+      id={`map-node-${lesson.id}`}
       className={`flex ${side === "right" ? "justify-end pr-8" : "justify-start pl-8"}`}
     >
       <div className="relative group">
