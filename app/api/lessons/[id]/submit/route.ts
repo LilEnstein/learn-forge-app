@@ -99,7 +99,10 @@ export async function POST(
     return NextResponse.json({ correct: true, explanation: exercise.explanation, heartsRemaining, lessonComplete: true });
   }
 
-  const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    include: { chapter: { select: { id: true, title: true, courseId: true } } },
+  });
   const perfect = existing?.perfect ?? true;
   const { xp, gems } = calculateXp(lesson?.type ?? "standard", perfect);
 
@@ -130,6 +133,38 @@ export async function POST(
   await addWeeklyXp(userId, xp);
   await unlockNextLesson(lessonId, userId);
 
+  const nextLessonProgress = await prisma.lessonProgress.findFirst({
+    where: {
+      userId,
+      status: "available",
+      lesson: { chapter: { courseId: lesson!.chapter.courseId } },
+    },
+    select: {
+      lesson: {
+        select: {
+          id: true,
+          title: true,
+          chapterId: true,
+          chapter: { select: { id: true, title: true, courseId: true } },
+        },
+      },
+    },
+    orderBy: [
+      { lesson: { chapter: { order: "asc" } } },
+      { lesson: { order: "asc" } },
+    ],
+  });
+
+  const nextLesson = nextLessonProgress
+    ? {
+        id: nextLessonProgress.lesson.id,
+        title: nextLessonProgress.lesson.title,
+        courseId: nextLessonProgress.lesson.chapter.courseId,
+        chapterId: nextLessonProgress.lesson.chapter.id,
+        chapterTitle: nextLessonProgress.lesson.chapter.title,
+      }
+    : null;
+
   return NextResponse.json({
     correct: true,
     explanation: exercise.explanation,
@@ -138,5 +173,6 @@ export async function POST(
     gemsEarned: gems,
     streakDay,
     lessonComplete: true,
+    nextLesson,
   });
 }
