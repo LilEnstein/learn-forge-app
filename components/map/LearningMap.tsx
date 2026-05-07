@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { MapNode, type MapLesson } from "./MapNode";
 import { ChapterHeader } from "./ChapterHeader";
@@ -15,10 +15,23 @@ interface Props {
   courseTitle: string;
   completedCount: number;
   totalCount: number;
+  highlightId?: string;
 }
 
-export function LearningMap({ lessons, courseId, courseEmoji, courseTitle, completedCount, totalCount }: Props) {
+export function LearningMap({ lessons, courseId, courseEmoji, courseTitle, completedCount, totalCount, highlightId }: Props) {
   const [selectedLesson, setSelectedLesson] = useState<MapLesson | null>(null);
+
+  useEffect(() => {
+    if (!highlightId) return;
+    const nodeEl = document.getElementById(`map-node-${highlightId}`);
+    if (!nodeEl) return;
+    nodeEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    nodeEl.classList.add("highlight-pulse");
+    const timer = setTimeout(() => {
+      nodeEl.classList.remove("highlight-pulse");
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [highlightId]);
 
   return (
     <div className="max-w-sm mx-auto pb-32">

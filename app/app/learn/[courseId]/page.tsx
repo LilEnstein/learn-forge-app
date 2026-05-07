@@ -5,9 +5,10 @@ import { LearningMap, type MapLesson } from "@/components/map/LearningMap";
 
 interface Props {
   params: { courseId: string };
+  searchParams: { highlight?: string };
 }
 
-export default async function CoursePage({ params }: Props) {
+export default async function CoursePage({ params, searchParams }: Props) {
   const session = await requireSession();
   const userId = session.user.id!;
   const { courseId } = params;
@@ -82,6 +83,7 @@ export default async function CoursePage({ params }: Props) {
       courseTitle={course.title}
       completedCount={completedCount}
       totalCount={mapLessons.length}
+      highlightId={searchParams.highlight}
     />
   );
 }
