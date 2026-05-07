@@ -13,6 +13,14 @@ export interface ExerciseItem {
   difficulty: number;
 }
 
+export interface NextLessonInfo {
+  id: string;
+  title: string;
+  courseId: string;
+  chapterId: string;
+  chapterTitle: string;
+}
+
 export interface SubmitResult {
   correct: boolean;
   explanation: string | null;
@@ -22,6 +30,7 @@ export interface SubmitResult {
   gemsEarned?: number;
   streakDay?: number;
   lessonComplete?: boolean;
+  nextLesson?: NextLessonInfo | null;
 }
 
 export function useExercise(lessonId: string, exercises: ExerciseItem[]) {
