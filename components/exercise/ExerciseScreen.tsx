@@ -39,7 +39,14 @@ export function ExerciseScreen({ lessonId, courseId, chapterId, chapterTitle, ex
   const showNoHearts = hearts === 0 && !showFeedback && !isComplete;
 
   if (isComplete && lastResult) {
-    return <ResultScreen result={lastResult} courseId={courseId} />;
+    return (
+      <ResultScreen
+        result={lastResult}
+        courseId={courseId}
+        chapterId={chapterId}
+        chapterTitle={chapterTitle}
+      />
+    );
   }
 
   if (!currentExercise) return null;
