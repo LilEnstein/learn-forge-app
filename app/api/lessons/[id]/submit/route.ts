@@ -103,8 +103,19 @@ export async function POST(
     where: { id: lessonId },
     include: { chapter: { select: { id: true, title: true, courseId: true } } },
   });
+
+  if (!lesson) {
+    return NextResponse.json({
+      correct: true,
+      explanation: exercise.explanation,
+      heartsRemaining,
+      lessonComplete: true,
+      nextLesson: null,
+    });
+  }
+
   const perfect = existing?.perfect ?? true;
-  const { xp, gems } = calculateXp(lesson?.type ?? "standard", perfect);
+  const { xp, gems } = calculateXp(lesson.type, perfect);
 
   let streakDay = 1;
 
@@ -137,7 +148,7 @@ export async function POST(
     where: {
       userId,
       status: "available",
-      lesson: { chapter: { courseId: lesson!.chapter.courseId } },
+      lesson: { chapter: { courseId: lesson.chapter.courseId } },
     },
     select: {
       lesson: {
