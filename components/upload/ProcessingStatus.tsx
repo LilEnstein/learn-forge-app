@@ -161,21 +161,40 @@ export function ProcessingStatus({ docId, onComplete, onError }: Props) {
       pollTimer = setInterval(tick, 2000)
     }
 
-    // Prefer the live SSE stream (rich sub-step % + log lines locally). If it
-    // errors before completing (serverless can't hold a LISTEN), fall back to
-    // polling so the bar still advances to done.
+    // Prefer the live SSE stream (rich sub-step % + log lines locally). But on
+    // serverless (Vercel+Neon) the stream can connect yet stay silent (LISTEN
+    // doesn't bridge across pooled connections) — onerror never fires. So also
+    // arm a grace timer: if no SSE event has arrived shortly, start polling too.
+    // Both sources feed handle(); whichever reaches "done" stops everything.
+    let sawSseEvent = false
+    let graceTimer: ReturnType<typeof setTimeout> | null = null
+
+    const armPollingFallback = () => {
+      if (!finished && !sawSseEvent) startPolling()
+    }
+
     try {
       es = new EventSource(`/api/upload/progress/${docId}`)
-      es.onmessage = (e) => handle(JSON.parse(e.data) as ProgressEvent)
+      es.onmessage = (e) => {
+        sawSseEvent = true
+        if (graceTimer) { clearTimeout(graceTimer); graceTimer = null }
+        handle(JSON.parse(e.data) as ProgressEvent)
+      }
       es.onerror = () => {
         if (es) { es.close(); es = null }
-        if (!finished) startPolling()
+        armPollingFallback()
       }
+      // If SSE produces nothing within the grace window, poll anyway.
+      graceTimer = setTimeout(armPollingFallback, 3500)
     } catch {
       startPolling()
     }
 
-    return stop
+    const origStop = stop
+    return () => {
+      if (graceTimer) clearTimeout(graceTimer)
+      origStop()
+    }
   }, [docId])
 
   // Auto-scroll to newest log line
