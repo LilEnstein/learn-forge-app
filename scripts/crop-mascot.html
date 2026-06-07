@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LearnForge Mascot Crop Tool</title>
+  <style>
+    body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; padding: 20px; }
+    h1 { color: #cba6f7; }
+    .controls { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0; background: #313244; padding: 16px; border-radius: 8px; }
+    .control-group { display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 12px; color: #a6adc8; }
+    input[type=number] { width: 80px; padding: 4px 8px; background: #45475a; border: 1px solid #585b70; color: #cdd6f4; border-radius: 4px; }
+    button { padding: 10px 20px; background: #cba6f7; color: #1e1e2e; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+    button:hover { background: #b4befe; }
+    #canvas-container { position: relative; margin-top: 16px; display: inline-block; }
+    canvas { display: block; border: 2px solid #585b70; border-radius: 4px; }
+    #overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
+    .status { margin-top: 12px; color: #a6e3a1; font-size: 14px; }
+    .instructions { background: #313244; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; line-height: 1.6; color: #a6adc8; }
+    .instructions strong { color: #cdd6f4; }
+  </style>
+</head>
+<body>
+  <h1>LearnForge Mascot Crop Tool</h1>
+
+  <div class="instructions">
+    <strong>Instructions:</strong><br>
+    1. Click "Load Image" and select the composite mascot image.<br>
+    2. Adjust the grid parameters until the red grid lines align with the mascot cells.<br>
+    3. Click "Download All 12 Crops" — each file will download automatically.<br>
+    4. Move the downloaded PNG files into <code>public/mascot/</code> in your project.
+  </div>
+
+  <input type="file" id="fileInput" accept="image/*" style="display:none" />
+  <button onclick="document.getElementById('fileInput').click()">Load Image</button>
+
+  <div class="controls" id="controls" style="display:none">
+    <div class="control-group">
+      <label>Grid Offset Top (px)</label>
+      <input type="number" id="offsetTop" value="85" oninput="redraw()" />
+    </div>
+    <div class="control-group">
+      <label>Grid Offset Left (px)</label>
+      <input type="number" id="offsetLeft" value="10" oninput="redraw()" />
+    </div>
+    <div class="control-group">
+      <label>Cell Width (px)</label>
+      <input type="number" id="cellW" value="310" oninput="redraw()" />
+    </div>
+    <div class="control-group">
+      <label>Cell Height (px)</label>
+      <input type="number" id="cellH" value="185" oninput="redraw()" />
+    </div>
+    <div class="control-group">
+      <label>Gap X (px)</label>
+      <input type="number" id="gapX" value="8" oninput="redraw()" />
+    </div>
+    <div class="control-group">
+      <label>Gap Y (px)</label>
+      <input type="number" id="gapY" value="8" oninput="redraw()" />
+    </div>
+    <div class="control-group">
+      <label>Label Height (px)</label>
+      <input type="number" id="labelH" value="28" oninput="redraw()" />
+    </div>
+    <div class="control-group" style="align-self:flex-end">
+      <button onclick="downloadAll()">Download All 12 Crops</button>
+    </div>
+  </div>
+
+  <div id="canvas-container">
+    <canvas id="canvas"></canvas>
+    <canvas id="overlay"></canvas>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <script>
+    const NAMES = [
+      'front', 'three-quarter', 'side', 'top-down',
+      'happy', 'thinking', 'surprised', 'sleeping',
+      'victory', 'streak-warning', 'welcome', 'notebook'
+    ]
+
+    let img = null
+    const canvas = document.getElementById('canvas')
+    const overlay = document.getElementById('overlay')
+    const ctx = canvas.getContext('2d')
+    const octx = overlay.getContext('2d')
+
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        img = new Image()
+        img.onload = () => {
+          // Scale to fit 1200px wide max
+          const scale = Math.min(1, 1200 / img.width)
+          canvas.width = img.width * scale
+          canvas.height = img.height * scale
+          overlay.width = canvas.width
+          overlay.height = canvas.height
+          overlay.style.width = canvas.width + 'px'
+          overlay.style.height = canvas.height + 'px'
+          canvas.dataset.scale = scale
+          redraw()
+          document.getElementById('controls').style.display = 'flex'
+          document.getElementById('status').textContent =
+            `Image loaded: ${img.width}×${img.height}px (displayed at ${Math.round(scale*100)}%)`
+        }
+        img.src = ev.target.result
+      }
+      reader.readAsDataURL(file)
+    })
+
+    function getParams() {
+      const scale = parseFloat(canvas.dataset.scale || '1')
+      return {
+        offsetTop: parseFloat(document.getElementById('offsetTop').value) * scale,
+        offsetLeft: parseFloat(document.getElementById('offsetLeft').value) * scale,
+        cellW: parseFloat(document.getElementById('cellW').value) * scale,
+        cellH: parseFloat(document.getElementById('cellH').value) * scale,
+        gapX: parseFloat(document.getElementById('gapX').value) * scale,
+        gapY: parseFloat(document.getElementById('gapY').value) * scale,
+        labelH: parseFloat(document.getElementById('labelH').value) * scale,
+        scale,
+      }
+    }
+
+    function redraw() {
+      if (!img) return
+      const scale = parseFloat(canvas.dataset.scale || '1')
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+      const p = getParams()
+      octx.clearRect(0, 0, overlay.width, overlay.height)
+      octx.strokeStyle = 'rgba(255, 0, 0, 0.8)'
+      octx.lineWidth = 1.5
+
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 4; col++) {
+          const x = p.offsetLeft + col * (p.cellW + p.gapX)
+          const y = p.offsetTop + row * (p.cellH + p.gapY) + p.labelH
+          octx.strokeRect(x, y, p.cellW, p.cellH - p.labelH)
+          octx.fillStyle = 'rgba(203, 166, 247, 0.8)'
+          octx.font = `${11 * p.scale}px sans-serif`
+          const idx = row * 4 + col
+          octx.fillText(NAMES[idx], x + 4, y - 4)
+        }
+      }
+    }
+
+    function getCropRect(row, col) {
+      // Use raw params (not scaled) because we crop from original image
+      const offsetTop = parseFloat(document.getElementById('offsetTop').value)
+      const offsetLeft = parseFloat(document.getElementById('offsetLeft').value)
+      const cellW = parseFloat(document.getElementById('cellW').value)
+      const cellH = parseFloat(document.getElementById('cellH').value)
+      const gapX = parseFloat(document.getElementById('gapX').value)
+      const gapY = parseFloat(document.getElementById('gapY').value)
+      const labelH = parseFloat(document.getElementById('labelH').value)
+
+      const x = Math.round(offsetLeft + col * (cellW + gapX))
+      const y = Math.round(offsetTop + row * (cellH + gapY) + labelH)
+      const w = Math.round(cellW)
+      const h = Math.round(cellH - labelH)
+      return { x, y, w, h }
+    }
+
+    function downloadAll() {
+      if (!img) { alert('Load an image first.'); return }
+      const offscreen = document.createElement('canvas')
+      const off = offscreen.getContext('2d')
+
+      NAMES.forEach((name, idx) => {
+        const row = Math.floor(idx / 4)
+        const col = idx % 4
+        const { x, y, w, h } = getCropRect(row, col)
+
+        offscreen.width = w
+        offscreen.height = h
+        off.clearRect(0, 0, w, h)
+        off.drawImage(img, x, y, w, h, 0, 0, w, h)
+
+        offscreen.toBlob((blob) => {
+          const a = document.createElement('a')
+          a.href = URL.createObjectURL(blob)
+          a.download = `${name}.png`
+          a.click()
+          URL.revokeObjectURL(a.href)
+        }, 'image/png')
+      })
+
+      document.getElementById('status').textContent =
+        '12 files queued for download. Move them to public/mascot/ in your project.'
+    }
+  </script>
+</body>
+</html>

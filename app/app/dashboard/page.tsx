@@ -5,6 +5,24 @@ import { Plus, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CoursesGrid } from "@/components/dashboard/CoursesGrid";
+import { DashboardMascot } from "@/components/dashboard/DashboardMascot";
+
+function todayString() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function yesterdayString() {
+  return new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
+}
+
+function computeStreakWarning(lastActivityDate: string | null, currentStreak: number): boolean {
+  if (!lastActivityDate || currentStreak === 0) return false
+  if (lastActivityDate === todayString()) return false   // already studied today
+  if (lastActivityDate !== yesterdayString()) return false // streak already broken
+  // Streak is alive but user hasn't studied yet — warn if within 2 hours of midnight
+  const hoursLeft = 23 - new Date().getHours()
+  return hoursLeft <= 2
+}
 
 export default async function DashboardPage() {
   const session = await requireSession();
@@ -29,8 +47,18 @@ export default async function DashboardPage() {
     where: { userId: session.user.id },
   });
 
+  const currentStreak = streak?.currentStreak ?? 0
+  const streakWarning = computeStreakWarning(streak?.lastActivityDate ?? null, currentStreak)
+  const streakMilestone = currentStreak >= 7
+
   return (
     <div className="max-w-5xl mx-auto space-y-8">
+      <DashboardMascot
+        currentStreak={currentStreak}
+        streakWarning={streakWarning}
+        streakMilestone={streakMilestone}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
