@@ -74,11 +74,16 @@ export function ProcessingStatus({ docId, onComplete, onError }: Props) {
   const { show, react } = useMascot()
 
   useEffect(() => {
-    const es = new EventSource(`/api/upload/progress/${docId}`)
+    let finished = false
+    let es: EventSource | null = null
+    let pollTimer: ReturnType<typeof setInterval> | null = null
 
-    es.onmessage = (e) => {
-      const event: ProgressEvent = JSON.parse(e.data)
+    const stop = () => {
+      if (es) { es.close(); es = null }
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+    }
 
+    const handle = (event: ProgressEvent) => {
       setActiveStep(event.step)
       if (event.progress !== undefined) setProgress(event.progress)
 
@@ -107,21 +112,70 @@ export function ProcessingStatus({ docId, onComplete, onError }: Props) {
       })
 
       if (event.step === "done") {
+        finished = true
         setIsDone(true)
         if (event.courseId) setCourseId(event.courseId)
-        es.close()
+        stop()
       }
       if (event.step === "error") {
+        finished = true
         setIsError(true)
-        es.close()
+        stop()
       }
     }
 
-    es.onerror = () => {
-      es.close()
+    // Polling fallback — used on serverless (Vercel), where the SSE/LISTEN
+    // stream is unavailable. Derives whole-pipeline progress from the status
+    // endpoint until the course is fully ready.
+    const STEP_MESSAGES: Record<ProgressStep, string> = {
+      upload: "Đang tải lên...",
+      parse: "Đang đọc tài liệu...",
+      chunk: "Đang chia nhỏ nội dung...",
+      embed: "Đang tạo vector embedding...",
+      curriculum: "Đang xây dựng lộ trình học...",
+      exercises: "Đang tạo bài tập...",
+      done: "Khóa học đã sẵn sàng!",
+      error: "Đã xảy ra lỗi khi xử lý tài liệu",
     }
 
-    return () => es.close()
+    const startPolling = () => {
+      if (pollTimer || finished) return
+      const tick = async () => {
+        try {
+          const res = await fetch(`/api/upload/status/${docId}`)
+          if (res.status === 404) { stop(); return }
+          if (!res.ok) return
+          const d = await res.json()
+          handle({
+            step: d.step as ProgressStep,
+            message: STEP_MESSAGES[d.step as ProgressStep] ?? "Đang xử lý...",
+            progress: d.progress,
+            timestamp: Date.now(),
+            courseId: d.courseId,
+          })
+        } catch {
+          // transient — keep polling
+        }
+      }
+      void tick()
+      pollTimer = setInterval(tick, 2000)
+    }
+
+    // Prefer the live SSE stream (rich sub-step % + log lines locally). If it
+    // errors before completing (serverless can't hold a LISTEN), fall back to
+    // polling so the bar still advances to done.
+    try {
+      es = new EventSource(`/api/upload/progress/${docId}`)
+      es.onmessage = (e) => handle(JSON.parse(e.data) as ProgressEvent)
+      es.onerror = () => {
+        if (es) { es.close(); es = null }
+        if (!finished) startPolling()
+      }
+    } catch {
+      startPolling()
+    }
+
+    return stop
   }, [docId])
 
   // Auto-scroll to newest log line

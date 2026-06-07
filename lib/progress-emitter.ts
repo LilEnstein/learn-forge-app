@@ -63,8 +63,20 @@ export const progressEmitter = {
         client.on("notification", onNotification)
         client.on("error", () => void cleanup())
 
-        await client.connect()
-        await client.query(`LISTEN ${CHANNEL}`)
+        try {
+          await client.connect()
+          await client.query(`LISTEN ${CHANNEL}`)
+        } catch {
+          // Serverless/pooled Postgres (e.g. Neon on Vercel) may reject LISTEN.
+          // Close the stream cleanly instead of throwing a 500 so the client
+          // falls back to status polling.
+          await cleanup()
+          try {
+            controller.close()
+          } catch {
+            // already closed
+          }
+        }
       },
       async cancel() {
         if (client) {
