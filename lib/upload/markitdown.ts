@@ -58,6 +58,7 @@ export async function convertWithMarkItDown(
     return await new Promise<string | null>((resolve) => {
       let stdout = "";
       let settled = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
       const done = (val: string | null) => {
         if (settled) return;
         settled = true;
@@ -72,7 +73,7 @@ export async function convertWithMarkItDown(
         return done(null);
       }
 
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         child.kill("SIGKILL");
         done(null);
       }, TIMEOUT_MS);
