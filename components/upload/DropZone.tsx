@@ -20,6 +20,7 @@ type Props = {
   minFiles?: number;
   redirectTo?: string;
   onComplete?: (courseId: string) => void;
+  onUploadSuccess?: (docId: string, courseId: string) => void;
 };
 
 const ACCEPTED = ".pdf,.docx,.txt,.md";
@@ -32,6 +33,7 @@ export function DropZone({
   minFiles = 1,
   redirectTo,
   onComplete,
+  onUploadSuccess,
 }: Props) {
   const [files, setFiles] = useState<FileStatus[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -118,7 +120,11 @@ export function DropZone({
         docId: doc.id,
         controller: undefined,
       });
-      startPolling(doc.id, data.courseId);
+      if (onUploadSuccess) {
+        onUploadSuccess(doc.id, data.courseId as string);
+      } else {
+        startPolling(doc.id, data.courseId);
+      }
       return data.courseId as string;
     } catch (err) {
       // AbortError → silent: cancel handler already updated UI to "cancelled".

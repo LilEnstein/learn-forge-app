@@ -2,7 +2,40 @@ import { prisma } from "@/lib/db/prisma";
 import { withFailover } from "@/lib/ai/with-failover";
 import { retrieveChunks } from "@/lib/ai/rag/retrieve";
 import { buildExercisePrompt } from "@/lib/ai/prompts/exercise.prompt";
+import { emitCourseProgress } from "@/lib/upload/progress";
 import { ExercisesArraySchema } from "./schemas";
+
+/**
+ * After a lesson's exercises are written, report progress. Exercises run as N
+ * parallel jobs; when the last lesson gets its exercises, fire the terminal
+ * "done" so the upload UI completes. Duplicate "done" events are harmless (the
+ * client closes the stream on the first one).
+ */
+async function reportExerciseProgress(courseId: string): Promise<void> {
+  const lessons = await prisma.lesson.findMany({
+    where: { chapter: { courseId } },
+    select: { _count: { select: { exercises: true } } },
+  });
+  const total = lessons.length;
+  const completed = lessons.filter((l) => l._count.exercises > 0).length;
+
+  if (completed >= total && total > 0) {
+    await emitCourseProgress(courseId, {
+      step: "done",
+      message: "Khóa học đã sẵn sàng!",
+      detail: `${total}/${total} bài học`,
+      progress: 100,
+      courseId,
+    });
+  } else {
+    await emitCourseProgress(courseId, {
+      step: "exercises",
+      message: "Đang tạo bài tập...",
+      detail: `${completed}/${total} bài học`,
+      progress: Math.round(90 + (completed / Math.max(total, 1)) * 10),
+    });
+  }
+}
 
 function extractJson(raw: string): string {
   const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -51,6 +84,7 @@ export async function generateExercises(lessonId: string): Promise<void> {
     });
   } catch (err) {
     console.error(`Exercise generation failed for lesson ${lessonId}:`, err);
+    await reportExerciseProgress(course.id);
     return;
   }
 
@@ -59,6 +93,7 @@ export async function generateExercises(lessonId: string): Promise<void> {
     exercises = ExercisesArraySchema.parse(JSON.parse(extractJson(raw)));
   } catch {
     console.error(`Invalid exercise JSON for lesson ${lessonId}`);
+    await reportExerciseProgress(course.id);
     return;
   }
 
@@ -78,4 +113,6 @@ export async function generateExercises(lessonId: string): Promise<void> {
       },
     });
   }
+
+  await reportExerciseProgress(course.id);
 }

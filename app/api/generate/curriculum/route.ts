@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { inngest } from "@/lib/inngest/client";
+import { dispatchJob } from "@/lib/queue/dispatch";
 
 const Schema = z.object({ courseId: z.string().min(1) });
 
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     data: { status: "generating" },
   });
 
-  await inngest.send({
+  await dispatchJob({
     name: "app/course.curriculum-requested",
     data: { courseId: course.id },
   });

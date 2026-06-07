@@ -3,12 +3,14 @@ import { parseBuffer } from "./parser";
 import { isMarkItDownAvailable, convertWithMarkItDown } from "./markitdown";
 import { chunkText } from "./chunker";
 import { withFailover } from "@/lib/ai/with-failover";
-import { inngest } from "@/lib/inngest/client";
+import { dispatchJob } from "@/lib/queue/dispatch";
 import { progressEmitter } from "@/lib/progress-emitter";
 import type { ProgressEvent } from "@/types/progress";
 
 function emit(docId: string, event: Omit<ProgressEvent, "timestamp">) {
-  progressEmitter.emit(docId, { ...event, timestamp: Date.now() });
+  // Fire-and-forget: progress is best-effort telemetry (emit swallows its own
+  // errors) and we don't want to slow ingestion waiting on a NOTIFY round-trip.
+  void progressEmitter.emit(docId, { ...event, timestamp: Date.now() });
 }
 
 /**
@@ -119,13 +121,14 @@ export async function ingestDocument(documentId: string): Promise<void> {
     });
     console.log(`[ingest] done: ${doc.name}`);
 
+    // Ingest is only the first stage — curriculum + exercises still run. Emit an
+    // embed-complete checkpoint (NOT "done") and let the exercise stage fire the
+    // terminal "done" once every lesson's exercises exist.
     emit(documentId, {
-      step: "done",
-      message: "Tài liệu đã được xử lý xong!",
-      progress: 100,
-      courseId: doc.courseId ?? undefined,
+      step: "embed",
+      message: "Đã tạo xong vector embedding",
+      progress: 85,
     });
-    progressEmitter.close(documentId);
 
     if (doc.courseId) {
       await checkAndTriggerCurriculum(doc.courseId);
@@ -176,7 +179,7 @@ async function checkAndTriggerCurriculum(courseId: string): Promise<void> {
     data: { status: "generating" },
   });
 
-  await inngest.send({
+  await dispatchJob({
     name: "app/course.curriculum-requested",
     data: { courseId },
   });

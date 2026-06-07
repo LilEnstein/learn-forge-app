@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import crypto from "crypto";
-import { put } from "@vercel/blob";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { inngest } from "@/lib/inngest/client";
+import { storage } from "@/lib/storage";
+import { dispatchJob } from "@/lib/queue/dispatch";
 
 const MAX_SIZE_MB = parseInt(process.env.MAX_UPLOAD_SIZE_MB ?? "50");
 const FREE_LIMIT = parseInt(process.env.MAX_DOCUMENTS_FREE ?? "3");
@@ -80,12 +80,11 @@ export async function POST(req: NextRequest) {
     files.map(async (file) => {
       const ext = path.extname(file.name).toLowerCase();
       const fileId = crypto.randomUUID();
-      const blobKey = `documents/${userId}/${fileId}${ext}`;
 
-      const blob = await put(blobKey, file, {
-        access: "public",
-        addRandomSuffix: false,
-      });
+      // storage.saveFile picks local disk or Vercel Blob based on
+      // STORAGE_PROVIDER and returns a path (local) or public URL (blob).
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const storagePath = await storage.saveFile(buffer, `${fileId}${ext}`);
 
       const docType = ext === ".pdf" ? "pdf" : ext === ".docx" ? "docx" : "text";
 
@@ -95,7 +94,7 @@ export async function POST(req: NextRequest) {
           courseId: resolvedCourseId,
           name: file.name,
           type: docType,
-          storagePath: blob.url,
+          storagePath,
           sizeBytes: file.size,
           status: "processing",
         },
@@ -103,15 +102,14 @@ export async function POST(req: NextRequest) {
     })
   );
 
-  // Hand off to Inngest — the worker downloads from Blob, parses, embeds, and
-  // (when all course docs are ready) enqueues curriculum generation.
-  await Promise.all(
-    createdDocs.map((doc) =>
-      inngest.send({
-        name: "app/document.uploaded",
-        data: { documentId: doc.id },
-      })
-    )
+  // Hand off to the background worker (pg-boss locally, Inngest in prod): it
+  // reads the file from storage, parses, embeds, and (when all course docs are
+  // ready) enqueues curriculum generation.
+  await dispatchJob(
+    createdDocs.map((doc) => ({
+      name: "app/document.uploaded" as const,
+      data: { documentId: doc.id },
+    }))
   );
 
   return NextResponse.json({

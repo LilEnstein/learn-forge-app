@@ -37,6 +37,12 @@ next-env.d.ts
 # Superpowers brainstorm artifacts
 .superpowers/
 
+# Understand-anything analysis artifacts (tooling output)
+.understand-anything/
+
+# Local test fixtures
+test-doc/
+
 # Git worktrees
 .worktrees/
 

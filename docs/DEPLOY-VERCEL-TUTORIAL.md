@@ -196,6 +196,7 @@ Nếu chưa có, tạo tại [Google Cloud Console](https://console.cloud.google
 
 | Tên biến | Giá trị |
 |---|---|
+| `STORAGE_PROVIDER` | `vercel-blob` ⚠️ **BẮT BUỘC trên Vercel** — quyết định lưu file lên Vercel Blob và đẩy background job qua Inngest. Nếu thiếu (mặc định `local`), upload sẽ cố ghi đĩa read-only + chạy pg-boss → lỗi. Local dev để `local`. |
 | `ADMIN_EMAILS` | Email của bạn (VD: `brolai1204@gmail.com`) — sẽ được tự động gán role `admin` khi đăng nhập |
 | `MAX_UPLOAD_SIZE_MB` | `50` |
 | `MAX_DOCUMENTS_FREE` | `3` |

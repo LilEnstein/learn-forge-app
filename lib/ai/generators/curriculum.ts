@@ -2,7 +2,8 @@ import { prisma } from "@/lib/db/prisma";
 import { withFailover } from "@/lib/ai/with-failover";
 import { retrieveChunks } from "@/lib/ai/rag/retrieve";
 import { buildCurriculumPrompt } from "@/lib/ai/prompts/curriculum.prompt";
-import { inngest } from "@/lib/inngest/client";
+import { dispatchJob } from "@/lib/queue/dispatch";
+import { emitCourseProgress } from "@/lib/upload/progress";
 import { CurriculumSchema } from "./schemas";
 
 function extractJson(raw: string): string {
@@ -24,6 +25,12 @@ export async function generateCurriculum(courseId: string): Promise<void> {
   if (existingChapters > 0) return;
 
   const userId = course.user.id;
+
+  await emitCourseProgress(courseId, {
+    step: "curriculum",
+    message: "Đang xây dựng lộ trình học...",
+    progress: 88,
+  });
 
   // Retrieve context chunks (embedding call) under failover
   const chunks = await withFailover(userId, "embedding", async (provider) => {
@@ -60,6 +67,10 @@ export async function generateCurriculum(courseId: string): Promise<void> {
     });
   } catch (err) {
     await prisma.course.update({ where: { id: courseId }, data: { status: "error" } });
+    await emitCourseProgress(courseId, {
+      step: "error",
+      message: "Không tạo được lộ trình học. Vui lòng thử lại.",
+    });
     throw err;
   }
 
@@ -68,6 +79,10 @@ export async function generateCurriculum(courseId: string): Promise<void> {
     curriculum = CurriculumSchema.parse(parsed);
   } catch {
     await prisma.course.update({ where: { id: courseId }, data: { status: "error" } });
+    await emitCourseProgress(courseId, {
+      step: "error",
+      message: "Không tạo được lộ trình học. Vui lòng thử lại.",
+    });
     throw new Error(`Failed to parse curriculum JSON for course ${courseId}`);
   }
 
@@ -117,7 +132,14 @@ export async function generateCurriculum(courseId: string): Promise<void> {
 
     if (lessons.length === 0) return;
 
-    await inngest.send(
+    await emitCourseProgress(courseId, {
+      step: "exercises",
+      message: "Đang tạo bài tập...",
+      detail: `0/${lessons.length} bài học`,
+      progress: 90,
+    });
+
+    await dispatchJob(
       lessons.map((lesson) => ({
         name: "app/lesson.exercises-requested" as const,
         data: { lessonId: lesson.id },
