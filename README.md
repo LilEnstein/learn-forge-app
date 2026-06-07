@@ -64,6 +64,7 @@ Chi tiết hơn: [docs/setup/QUICKSTART.md](docs/setup/QUICKSTART.md)
 | File | Nội dung |
 |---|---|
 | [QUICKSTART.md](docs/setup/QUICKSTART.md) | Chạy local trong 15 phút |
+| [WINDOWS-POWERSHELL-SETUP.md](docs/setup/WINDOWS-POWERSHELL-SETUP.md) | Hướng dẫn chi tiết cho Windows + PowerShell + Gemini |
 | [GETTING-API-KEYS.md](docs/setup/GETTING-API-KEYS.md) | Lấy từng API key |
 | [DEPLOY-VERCEL.md](docs/setup/DEPLOY-VERCEL.md) | Deploy lên production |
 | [TROUBLESHOOTING.md](docs/setup/TROUBLESHOOTING.md) | Lỗi thường gặp + cách fix |

@@ -3,6 +3,8 @@
 import { useRef, useEffect } from "react";
 import type { CompanionContext } from "@/lib/companion/useCompanionContext";
 import { useCompanionHistory } from "@/lib/companion/useCompanionHistory";
+import { useMascot } from "@/hooks/useMascot";
+import { MascotFloat } from "@/components/mascot/MascotFloat";
 import { useState } from "react";
 
 interface Props {
@@ -28,10 +30,21 @@ export function CompanionChat({ context, userId }: Props) {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { react, show } = useMascot();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isStreaming]);
+
+  // Mascot: thinking while streaming, front+nod when done
+  useEffect(() => {
+    if (isStreaming) {
+      react("thinking");
+    } else if (messages.length > 1) {
+      show("front");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStreaming]);
 
   const lastMsg = messages[messages.length - 1];
   // Phase 1: waiting for first token
@@ -178,6 +191,8 @@ export function CompanionChat({ context, userId }: Props) {
           Gửi
         </button>
       </form>
+
+      <MascotFloat position="bottom-left" />
     </div>
   );
 }

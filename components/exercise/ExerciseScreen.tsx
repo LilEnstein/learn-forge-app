@@ -1,6 +1,11 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { useExercise, type ExerciseItem } from "@/hooks/useExercise";
 import { useGamification } from "@/hooks/useGamification";
+import { useMascot } from "@/hooks/useMascot";
+import { MascotFloat } from "@/components/mascot/MascotFloat";
+import { MascotOverlay } from "@/components/mascot/MascotOverlay";
 import { ProgressBar } from "./ProgressBar";
 import { HeartDisplay } from "./HeartDisplay";
 import { FeedbackOverlay } from "./FeedbackOverlay";
@@ -35,6 +40,60 @@ export function ExerciseScreen({ lessonId, courseId, chapterId, chapterTitle, ex
     submitAnswer,
     advance,
   } = useExercise(lessonId, exercises);
+
+  const { react, show } = useMascot();
+  const errorCount = useRef(0);
+  const [showPerfectOverlay, setShowPerfectOverlay] = useState(false);
+
+  // Mascot: greet on mount
+  useEffect(() => {
+    show('top-down');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Mascot: react to correct / incorrect answers
+  useEffect(() => {
+    if (!showFeedback || !lastResult) return;
+    if (lastResult.correct) {
+      react('correct');
+    } else {
+      errorCount.current++;
+      react('incorrect');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFeedback, lastResult]);
+
+  // Mascot: react on lesson complete
+  useEffect(() => {
+    if (!isComplete) return;
+    if (errorCount.current === 0) {
+      setShowPerfectOverlay(true);
+      react('perfect');
+    } else {
+      react('lesson_complete');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isComplete]);
+
+  // Mascot: idle detection (5 minutes)
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => react('idle'), 5 * 60 * 1000);
+    };
+    window.addEventListener('mousemove', reset);
+    window.addEventListener('keydown', reset);
+    window.addEventListener('touchstart', reset);
+    reset();
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('mousemove', reset);
+      window.removeEventListener('keydown', reset);
+      window.removeEventListener('touchstart', reset);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const showNoHearts = hearts === 0 && !showFeedback && !isComplete;
 
@@ -144,6 +203,18 @@ export function ExerciseScreen({ lessonId, courseId, chapterId, chapterTitle, ex
           }}
         />
       )}
+
+      <MascotFloat position="bottom-right" />
+
+      <AnimatePresence>
+        {showPerfectOverlay && (
+          <MascotOverlay
+            expression="victory"
+            message="Hoàn hảo! +5 gems 💎"
+            onClose={() => setShowPerfectOverlay(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

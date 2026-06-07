@@ -9,7 +9,35 @@
       "Bash(docker-compose up *)",
       "Bash(docker --version)",
       "Bash(npx prisma *)",
-      "Bash(DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/learnforge\" npx prisma migrate dev --name init)"
+      "Bash(DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/learnforge\" npx prisma migrate dev --name init)",
+      "Bash(docker compose *)",
+      "PowerShell(docker --version)",
+      "PowerShell(docker compose version)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell($env:Path += \";C:\\\\Program Files\\\\Docker\\\\Docker\\\\resources\\\\bin\"; docker --version)",
+      "PowerShell($env:Path += \";C:\\\\Program Files\\\\Docker\\\\Docker\\\\resources\\\\bin\"; docker ps --format \"table {{.Names}}\\\\t{{.Status}}\" 2>&1)",
+      "PowerShell(node -e \"const crypto = require\\('crypto'\\); console.log\\('AUTH_SECRET=' + crypto.randomBytes\\(32\\).toString\\('base64'\\)\\); console.log\\('ENCRYPTION_SECRET=' + crypto.randomBytes\\(32\\).toString\\('hex'\\)\\);\")",
+      "PowerShell($env:Path += \";C:\\\\Program Files\\\\Docker\\\\Docker\\\\resources\\\\bin\"; Set-Location \"e:\\\\Personal_Project\\\\learn-forge-app\"; docker compose up -d 2>&1)",
+      "PowerShell($env:Path += \";C:\\\\Program Files\\\\Docker\\\\Docker\\\\resources\\\\bin\"; Start-Sleep -Seconds 3; docker compose ps 2>&1)",
+      "PowerShell(Set-Location \"e:\\\\Personal_Project\\\\learn-forge-app\"; $env:DATABASE_URL = \"postgresql://postgres:postgres@localhost:5433/learnforge\"; npx prisma migrate dev --name init 2>&1)",
+      "PowerShell(try { $r = Invoke-WebRequest \"http://localhost:3000\" -TimeoutSec 5 -UseBasicParsing; \"Status: $\\($r.StatusCode\\)\" } catch { \"Error: $_\" })",
+      "PowerShell(try { $r = Invoke-WebRequest \"http://localhost:3000\" -TimeoutSec 10 -UseBasicParsing; \"Status: $\\($r.StatusCode\\), Length: $\\($r.Content.Length\\)\" } catch { \"Error: $_\" })",
+      "PowerShell($env:Path += \";C:\\\\Program Files\\\\Docker\\\\Docker\\\\resources\\\\bin\"; Set-Location \"e:\\\\Personal_Project\\\\learn-forge-app\"; docker compose up -d 2>&1; docker compose ps --format \"table {{.Name}}\\\\t{{.Status}}\\\\t{{.Ports}}\")",
+      "PowerShell(Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Get-Process -Id $_.OwningProcess })",
+      "PowerShell(Stop-Process -Id 14804 -Force)",
+      "PowerShell(\"Old server stopped.\")",
+      "PowerShell($env:Path += \";C:\\\\Program Files\\\\Docker\\\\Docker\\\\resources\\\\bin\"; docker compose -f \"e:\\\\Personal_Project\\\\learn-forge-app\\\\docker-compose.yml\" ps --format \"table {{.Name}}\\\\t{{.Status}}\")",
+      "PowerShell(Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue)",
+      "PowerShell(try { $r = Invoke-WebRequest \"http://localhost:3000\" -TimeoutSec 5 -UseBasicParsing; \"HTTP $\\($r.StatusCode\\) — server is up\" } catch { \"Not responding: $_\" })",
+      "PowerShell(Get-NetTCPConnection -LocalPort 3000 -State Listen | ForEach-Object { Get-Process -Id $_.OwningProcess | Select-Object Id, ProcessName, CPU }; Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 3000 -State Listen\\).OwningProcess -Force -ErrorAction SilentlyContinue; \"Done\")",
+      "PowerShell(try { $r = Invoke-WebRequest \"http://localhost:3000\" -TimeoutSec 10 -UseBasicParsing; \"HTTP $\\($r.StatusCode\\) — OK\" } catch { \"Error: $_\" })",
+      "PowerShell(Start-Sleep -Seconds 5; try { $r = Invoke-WebRequest \"http://localhost:3000\" -TimeoutSec 30 -UseBasicParsing; \"HTTP $\\($r.StatusCode\\) — OK\" } catch { \"Error: $_\" })",
+      "Bash(mkdir -p \"e:/Personal_Project/learn-forge-app/app/api/upload/progress/[docId]\")",
+      "Bash(node *)"
+    ],
+    "additionalDirectories": [
+      "e:\\Personal_Project\\learn-forge-app\\app\\api\\upload\\progress"
     ]
   }
 }
